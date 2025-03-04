@@ -1,0 +1,49 @@
+{
+  "project_info": {
+    "project_number": "842055539126",
+    "firebase_url": "https://vetcall-8ce5c-default-rtdb.firebaseio.com",
+    "project_id": "vetcall-8ce5c",
+    "storage_bucket": "vetcall-8ce5c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:842055539126:android:1b8429c3f2013125710917",
+        "android_client_info": {
+          "package_name": "com.example.vetcall"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCkcwW3uICkUlAiY9T6K59jhxl0NfFMKLA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:842055539126:android:5f7edf553d7e3d9b710917",
+        "android_client_info": {
+          "package_name": "com.example.vetcalls"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCkcwW3uICkUlAiY9T6K59jhxl0NfFMKLA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

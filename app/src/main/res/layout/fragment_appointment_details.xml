@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".fragment.AppointmentDetailsFragment">
+
+    <!-- Back Button -->
+    <ImageButton
+        android:id="@+id/backButton"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:src="@drawable/arrow"
+        android:contentDescription="Back"
+        android:padding="8dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        android:layout_margin="16dp"/>
+
+    <!-- Appointment Title -->
+    <TextView
+        android:id="@+id/appointmentTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Appointment Details"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:textColor="@color/black"
+        android:layout_marginTop="16dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"/>
+
+    <!-- Appointment Date -->
+    <TextView
+        android:id="@+id/textDate"
+
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="32dp"
+        android:text="Date: Jan 1, 2024"
+        android:textColor="@color/black"
+        android:textSize="18sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/appointmentTitle" />
+
+    <!-- Appointment Time -->
+    <TextView
+        android:id="@+id/textTime"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Time: 10:30 AM"
+        android:textSize="18sp"
+        android:textColor="@color/black"
+        android:layout_marginTop="8dp"
+        app:layout_constraintTop_toBottomOf="@id/textDate"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"/>
+
+    <!-- Vet Name -->
+    <TextView
+        android:id="@+id/textVetName"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Veterinarian: Dr. John Doe"
+        android:textSize="18sp"
+        android:textColor="@color/black"
+        android:layout_marginTop="8dp"
+        app:layout_constraintTop_toBottomOf="@id/textTime"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"/>
+
+    <!-- Notes -->
+    <TextView
+        android:id="@+id/textDetails"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Notes: Your pet received a checkup and is in great health!"
+        android:textSize="16sp"
+        android:textColor="@color/black"
+        android:layout_marginTop="8dp"
+        android:padding="16dp"
+        app:layout_constraintTop_toBottomOf="@id/textVetName"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"/>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
