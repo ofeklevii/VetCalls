@@ -1,4 +1,4 @@
-package com.example.vetcalls.fragment;
+package com.example.vetcalls.usersFragment;
 
 import android.view.LayoutInflater;
 import android.view.View;
@@ -7,9 +7,8 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.fragment.app.FragmentActivity;
 import androidx.recyclerview.widget.RecyclerView;
-
-import com.example.vetcall.R;
-import com.example.vetcall.obj.Appointment;
+import com.example.vetcalls.R;
+import com.example.vetcalls.obj.Appointment;
 
 import java.util.List;
 
@@ -38,7 +37,7 @@ public class AppointmentAdapter extends RecyclerView.Adapter<AppointmentAdapter.
         // Open details when clicked
         holder.itemView.setOnClickListener(v -> {
             AppointmentDetailsFragment detailsFragment = AppointmentDetailsFragment.newInstance(
-                    appointment.getDate(), appointment.getTime(), appointment.getDetails(), appointment.getDoctor());
+                    appointment.getDate(), appointment.getTime(), appointment.getDetails(), appointment.getVeterinarian());
 
             activity.getSupportFragmentManager().beginTransaction()
                     .replace(R.id.fragment_container, detailsFragment)

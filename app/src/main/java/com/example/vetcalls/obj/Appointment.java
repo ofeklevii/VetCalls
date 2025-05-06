@@ -1,16 +1,16 @@
-package com.example.vetcall.obj;
+package com.example.vetcalls.obj;
 
 public class Appointment {
     private String date;
     private String time;
     private String details;
-    private String doctor;
+    private String veterinarian;
 
-    public Appointment(String date, String time, String details, String doctor) {
+    public Appointment(String date, String time, String details, String veterinarian) {
         this.date = date;
         this.time = time;
         this.details = details;
-        this.doctor = doctor;
+        this.veterinarian = veterinarian;
     }
 
     public String getDate() {
@@ -21,8 +21,8 @@ public class Appointment {
         return time;
     }
 
-    public String getDoctor(){
-        return doctor;
+    public String getVeterinarian(){
+        return veterinarian;
     }
 
     public String getDetails() {

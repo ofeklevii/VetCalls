@@ -1,4 +1,4 @@
-package com.example.vetcalls.fragment;
+package com.example.vetcalls.usersFragment;
 
 import android.os.Bundle;
 import android.view.LayoutInflater;
@@ -10,8 +10,8 @@ import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.example.vetcall.R;
-import com.example.vetcall.obj.Appointment;
+import com.example.vetcalls.R;
+import com.example.vetcalls.obj.Appointment;
 
 import java.util.ArrayList;
 import java.util.List;

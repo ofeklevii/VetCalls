@@ -1,4 +1,4 @@
-package com.example.vetcalls.fragment;
+package com.example.vetcalls.usersFragment;
 
 import android.os.Bundle;
 import android.view.LayoutInflater;
@@ -10,7 +10,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
-import com.example.vetcall.R;
+import com.example.vetcalls.R;
 
 public class AppointmentDetailsFragment extends Fragment {
 

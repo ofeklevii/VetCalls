@@ -10,7 +10,7 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.example.vetcall.R;
+import com.example.vetcalls.R;
 
 public class SignUpActivity extends AppCompatActivity {
 

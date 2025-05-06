@@ -71,4 +71,20 @@
         android:elevation="4dp"
         android:layout_below="@id/topBar" />
 
+    <Button
+        android:id="@+id/addDogButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Add New Dog"
+        android:layout_marginTop="12dp"
+        android:backgroundTint="#66BB6A"
+        android:textColor="#FFFFFF"/>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/dogRecyclerView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="16dp"/>
+
 </LinearLayout>

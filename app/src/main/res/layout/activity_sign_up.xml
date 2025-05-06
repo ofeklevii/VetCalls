@@ -24,6 +24,7 @@
         android:hint="Email"
         android:inputType="textEmailAddress" />
 
+
     <Button
         android:id="@+id/nextButton"
         android:layout_width="match_parent"
@@ -31,4 +32,6 @@
         android:text="Next"
         android:backgroundTint="@color/blue"
         android:layout_marginTop="16dp" />
+
+
 </LinearLayout>

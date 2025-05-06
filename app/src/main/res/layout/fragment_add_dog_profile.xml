@@ -4,9 +4,9 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="16dp">
+    android:padding="16dp"
+    android:background="#FAFAFA">
 
-    <!-- Scrollable Content -->
     <ScrollView
         android:id="@+id/scrollView"
         android:layout_width="0dp"
@@ -19,7 +19,8 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:orientation="vertical"
+            android:paddingBottom="32dp">
 
             <!-- Profile Picture -->
             <ImageView
@@ -30,11 +31,11 @@
                 android:src="@drawable/user_person_profile_avatar_icon_190943"
                 android:contentDescription="Edit Profile Picture"
                 android:scaleType="centerCrop"
-                android:layout_marginBottom="16dp"
                 android:background="@drawable/circle_shape"
                 android:clipToOutline="true"
-
-                />
+                android:elevation="4dp"
+                android:layout_marginTop="24dp"
+                android:layout_marginBottom="8dp"/>
 
             <Button
                 android:id="@+id/changeProfilePicButton"
@@ -44,79 +45,71 @@
                 android:text="Change Picture"
                 android:textColor="#FFFFFF"
                 android:backgroundTint="#29B6F6"
-                android:layout_marginBottom="16dp" />
+                android:layout_marginBottom="24dp" />
 
-            <!-- Name -->
+            <!-- Input Fields -->
             <EditText
                 android:id="@+id/editName"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:hint="Name"
-                android:background="@drawable/common_google_signin_btn_icon_light_normal_background"
                 android:inputType="textPersonName"
-                android:layout_marginBottom="16dp" />
+                android:backgroundTint="#CCCCCC"
+                android:layout_marginBottom="12dp" />
 
-            <!-- Birthday -->
             <EditText
                 android:id="@+id/editBirthday"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="@drawable/common_google_signin_btn_icon_light_normal_background"
                 android:hint="Birthday (YYYY-MM-DD)"
                 android:inputType="date"
-                android:layout_marginBottom="16dp" />
+                android:backgroundTint="#CCCCCC"
+                android:layout_marginBottom="12dp" />
 
-            <!-- Weight -->
             <EditText
                 android:id="@+id/editWeight"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:hint="Weight (kg)"
-                android:background="@drawable/common_google_signin_btn_icon_light_normal_background"
                 android:inputType="numberDecimal"
-                android:layout_marginBottom="16dp" />
+                android:backgroundTint="#CCCCCC"
+                android:layout_marginBottom="12dp" />
 
-
-            <!-- Race -->
             <EditText
                 android:id="@+id/editRace"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:hint="Race"
-                android:background="@drawable/common_google_signin_btn_icon_light_normal_background"
                 android:inputType="text"
-                android:layout_marginBottom="16dp" />
+                android:backgroundTint="#CCCCCC"
+                android:layout_marginBottom="12dp" />
 
-            <!-- Allergies -->
             <EditText
                 android:id="@+id/editAllergies"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:hint="Allergies"
-                android:background="@drawable/common_google_signin_btn_icon_light_normal_background"
                 android:inputType="text"
-                android:layout_marginBottom="16dp" />
+                android:backgroundTint="#CCCCCC"
+                android:layout_marginBottom="12dp" />
 
-            <!-- Vaccines -->
             <EditText
                 android:id="@+id/editVaccines"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:hint="Vaccines and drugs"
-                android:background="@drawable/common_google_signin_btn_icon_light_normal_background"
                 android:inputType="text"
-                android:layout_marginBottom="16dp" />
+                android:backgroundTint="#CCCCCC"
+                android:layout_marginBottom="24dp" />
 
-            <!-- Save Button -->
             <Button
                 android:id="@+id/saveButton"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Save Changes"
+                android:text="Save Dog Profile"
                 android:textColor="#FFFFFF"
-                android:backgroundTint="#29B6F6"
-                android:elevation="4dp"
-                android:layout_marginBottom="16dp" />
+                android:backgroundTint="#00796B"
+                android:elevation="4dp" />
         </LinearLayout>
     </ScrollView>
 
