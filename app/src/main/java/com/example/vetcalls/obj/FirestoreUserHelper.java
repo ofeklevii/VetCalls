@@ -53,6 +53,8 @@ public class FirestoreUserHelper {
                                      String ownerId, String vetId,
                                      @Nullable String imageUrl) {
 
+        Log.d(TAG, "Adding dog profile: " + dogId + ", name: " + name + ", owner: " + ownerId);
+
         Map<String, Object> dogData = new HashMap<>();
         dogData.put("name", name);
         dogData.put("race", race);
@@ -63,27 +65,48 @@ public class FirestoreUserHelper {
         dogData.put("vaccines", vaccines);
         dogData.put("bio", bio);
         dogData.put("ownerId", ownerId);
-        dogData.put("vetId", vetId);
-        if (imageUrl != null) {
-            dogData.put("imageUrl", imageUrl);
+        if (vetId != null && !vetId.isEmpty()) {
+            dogData.put("vetId", vetId);
         }
 
+        // שימוש בשדה עקבי לתמונה - profileImageUrl
+        if (imageUrl != null) {
+            dogData.put("profileImageUrl", imageUrl);
+        }
+
+        // שמירה באוסף הכללי של כלבים - DogProfiles
         db.collection("DogProfiles").document(dogId)
                 .set(dogData, SetOptions.merge())
                 .addOnSuccessListener(aVoid -> Log.d(TAG, "Dog profile saved to DogProfiles"))
                 .addOnFailureListener(e -> Log.e(TAG, "Failed to save dog profile to DogProfiles", e));
 
+        // שמירה בתת-אוסף של המשתמש - Users/{ownerId}/Dogs
         db.collection("Users").document(ownerId)
                 .collection("Dogs").document(dogId)
                 .set(dogData, SetOptions.merge())
                 .addOnSuccessListener(aVoid -> Log.d(TAG, "Dog profile saved under user"))
                 .addOnFailureListener(e -> Log.e(TAG, "Failed to save dog profile under user", e));
+
+        // בדיקה נוספת כדי לוודא שהנתיב מלא
+        if (ownerId != null && !ownerId.isEmpty()) {
+            // עדכון רשימת הכלבים של המשתמש
+            Map<String, Object> dogRef = new HashMap<>();
+            dogRef.put("dogId", dogId);
+            dogRef.put("name", name);
+
+            db.collection("Users").document(ownerId)
+                    .collection("DogsList").document(dogId)
+                    .set(dogRef)
+                    .addOnSuccessListener(aVoid -> Log.d(TAG, "Added dog to user's dogs list"))
+                    .addOnFailureListener(e -> Log.e(TAG, "Failed to add dog to user's dogs list", e));
+        }
     }
 
-    // העלאת תמונה ל־Firebase Storage
-    public static void uploadDogProfileImage(Uri imageUri, String dogId, OnImageUploadListener listener) {
+    public static void uploadDogProfileImage(Uri imageUri, String dogId, String ownerId, OnImageUploadListener listener) {
         if (imageUri == null) {
-            listener.onUploadFailed(new IllegalArgumentException("Image URI is null"));
+            if (listener != null) {
+                listener.onUploadFailed(new IllegalArgumentException("Image URI is null"));
+            }
             return;
         }
 
@@ -93,11 +116,38 @@ public class FirestoreUserHelper {
         uploadTask.addOnSuccessListener(taskSnapshot -> {
             storageRef.getDownloadUrl().addOnSuccessListener(uri -> {
                 String imageUrl = uri.toString();
+
+                // עדכון ה-URL של התמונה במסמך הכלב
+                db.collection("DogProfiles").document(dogId)
+                        .update("profileImageUrl", imageUrl)
+                        .addOnSuccessListener(aVoid -> Log.d(TAG, "Image URL updated in DogProfiles"));
+
+                // עדכון ה-URL של התמונה במסמך הכלב תחת המשתמש
+                if (ownerId != null && !ownerId.isEmpty()) {
+                    db.collection("Users").document(ownerId)
+                            .collection("Dogs").document(dogId)
+                            .update("profileImageUrl", imageUrl)
+                            .addOnSuccessListener(aVoid -> Log.d(TAG, "Image URL updated in user's Dogs"));
+                }
+
                 Log.d(TAG, "Image uploaded. URL: " + imageUrl);
-                listener.onUploadSuccess(imageUrl);
-            }).addOnFailureListener(listener::onUploadFailed);
-        }).addOnFailureListener(listener::onUploadFailed);
+                if (listener != null) {
+                    listener.onUploadSuccess(imageUrl);
+                }
+            }).addOnFailureListener(e -> {
+                Log.e(TAG, "Failed to get download URL: " + e.getMessage());
+                if (listener != null) {
+                    listener.onUploadFailed(e);
+                }
+            });
+        }).addOnFailureListener(e -> {
+            Log.e(TAG, "Failed to upload image: " + e.getMessage());
+            if (listener != null) {
+                listener.onUploadFailed(e);
+            }
+        });
     }
+
 
     public interface OnImageUploadListener {
         void onUploadSuccess(String imageUrl);

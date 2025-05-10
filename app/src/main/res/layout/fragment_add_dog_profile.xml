@@ -102,14 +102,35 @@
                 android:backgroundTint="#CCCCCC"
                 android:layout_marginBottom="24dp" />
 
-            <Button
-                android:id="@+id/saveButton"
+            <!-- Buttons - in LinearLayout for horizontal arrangement -->
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Save Dog Profile"
-                android:textColor="#FFFFFF"
-                android:backgroundTint="#00796B"
-                android:elevation="4dp" />
+                android:orientation="horizontal"
+                android:layout_marginTop="8dp">
+
+                <Button
+                    android:id="@+id/cancelButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Cancel"
+                    android:textColor="#FFFFFF"
+                    android:backgroundTint="#757575"
+                    android:layout_marginEnd="8dp"
+                    android:elevation="4dp" />
+
+                <Button
+                    android:id="@+id/saveButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Save Dog Profile"
+                    android:textColor="#FFFFFF"
+                    android:backgroundTint="#00796B"
+                    android:layout_marginStart="8dp"
+                    android:elevation="4dp" />
+            </LinearLayout>
         </LinearLayout>
     </ScrollView>
 

@@ -22,6 +22,8 @@ import android.widget.ImageView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.navigation.NavController;
+import androidx.navigation.Navigation;
 
 import com.bumptech.glide.Glide;
 import com.example.vetcalls.R;
@@ -45,7 +47,7 @@ import java.util.UUID;
 public class EditProfileFragment extends Fragment {
 
     private EditText editName, editBirthday, editWeight, editRace, editAllergies, editVaccines;
-    private Button saveButton, changeProfilePicButton;
+    private Button saveButton, changeProfilePicButton, cancelButton; // הוספת כפתור ביטול
     private ImageView editProfilePic;
     private SharedPreferences sharedPreferences;
     private FirebaseFirestore db;
@@ -56,6 +58,24 @@ public class EditProfileFragment extends Fragment {
     private static final int REQUEST_IMAGE_PICK = 1;
     private static final int REQUEST_IMAGE_CAPTURE = 2;
     private String dogId;
+
+    private String buildBio(String race, String weight, String allergies, String vaccines) {
+        StringBuilder bioBuilder = new StringBuilder();
+
+        // הגזע יוצג בנפרד, לא בביו
+        if (!weight.isEmpty()) {
+            bioBuilder.append("Weight: ").append(weight).append(" kg\n");
+        }
+        if (!allergies.isEmpty()) {
+            bioBuilder.append("Allergies: ").append(allergies).append("\n");
+        }
+        if (!vaccines.isEmpty()) {
+            bioBuilder.append("Vaccines: ").append(vaccines);
+        }
+
+        return bioBuilder.toString().trim();
+    }
+
 
     @Nullable
     @Override
@@ -71,18 +91,50 @@ public class EditProfileFragment extends Fragment {
         saveButton = view.findViewById(R.id.saveButton);
         changeProfilePicButton = view.findViewById(R.id.changeProfilePicButton);
         editProfilePic = view.findViewById(R.id.editProfilePic);
-
+        cancelButton = view.findViewById(R.id.cancelButton); // אתחול כפתור הביטול
 
         auth = FirebaseAuth.getInstance();
         db = FirebaseFirestore.getInstance();
         sharedPreferences = requireActivity().getSharedPreferences("UserProfile", Context.MODE_PRIVATE);
 
+        // קבלת מזהה הכלב מהארגומנטים (אם נשלח)
+        if (getArguments() != null) {
+            dogId = getArguments().getString("dogId", "");
+        } else {
+            // אחרת קח מהשרד פרפרנסס
+            dogId = sharedPreferences.getString("dogId", "");
+        }
+
         loadSavedData();
+
+        // טעינת תמונת הפרופיל
+        String imageUrl = sharedPreferences.getString("profileImageUrl", null);
+        if (imageUrl != null && !imageUrl.isEmpty()) {
+            Glide.with(this).load(Uri.parse(imageUrl)).circleCrop().into(editProfilePic);
+        }
 
         saveButton.setOnClickListener(v -> saveProfile());
         changeProfilePicButton.setOnClickListener(v -> showImagePickerDialog());
 
+        // הוספת מאזין ללחיצה על כפתור הביטול
+        cancelButton.setOnClickListener(v -> navigateBack());
+
         return view;
+    }
+
+    // פונקציה חדשה לחזרה למסך הקודם ללא שמירת השינויים
+    private void navigateBack() {
+        // אפשרות 1: שימוש ב-FragmentManager
+        requireActivity().getSupportFragmentManager().popBackStack();
+
+        // אפשרות 2: שימוש ב-Navigation Component (אם קיים)
+        try {
+            NavController navController = Navigation.findNavController(requireView());
+            navController.navigateUp();
+        } catch (Exception e) {
+            // אם Navigation לא זמין, נשתמש באפשרות 1
+            requireActivity().getSupportFragmentManager().popBackStack();
+        }
     }
 
     private void saveProfile() {
@@ -100,8 +152,13 @@ public class EditProfileFragment extends Fragment {
         String vaccines = editVaccines.getText().toString().trim();
         String ownerId = currentUser.getUid();
         String age = calculateDogAge(birthday);
-        dogId = sharedPreferences.getString("dogId", UUID.randomUUID().toString());
-        String bio = "";
+
+        // בדיקה אם יש dogId קיים - אם כן, זה עדכון. אם לא, צור חדש
+        if (dogId == null || dogId.isEmpty()) {
+            dogId = UUID.randomUUID().toString();
+        }
+
+        String bio = buildBio(race, weight, allergies, vaccines);
         String vet = (vetId != null && !vetId.isEmpty()) ? vetId : "";
 
         if (name.isEmpty() || race.isEmpty() || birthday.isEmpty() || weight.isEmpty()) {
@@ -109,32 +166,83 @@ public class EditProfileFragment extends Fragment {
             return;
         }
 
-        // בשלב זה אנחנו שולחים null עד שה-URL האמיתי יעלה ל-Firebase
-        FirestoreUserHelper.addDogProfile(
-                dogId,
-                name,
-                race,
-                Integer.parseInt(age),
-                birthday,
-                weight,
-                allergies,
-                vaccines,
-                bio,
-                ownerId,
-                vet,
-                null  // imageUrl עדיין לא ידוע בשלב הזה
-        );
-
-        saveLocally(name, birthday, weight, race, allergies, vaccines, age, bio, dogId);
-
-        if (selectedImageUri != null) {
-            uploadImageToFirebase(selectedImageUri); // כאן תתבצע העלאה, ובהמשך תעודכן ה-URL
+        // עדכון בפיירסטור
+        if (dogId != null && !dogId.isEmpty()) {
+            // עדכון כלב קיים
+            FirebaseFirestore db = FirebaseFirestore.getInstance();
+            db.collection("DogProfiles").document(dogId)
+                    .update(
+                            "name", name,
+                            "race", race,
+                            "age", Integer.parseInt(age),
+                            "birthday", birthday,
+                            "weight", weight,
+                            "allergies", allergies,
+                            "vaccines", vaccines,
+                            "bio", bio
+                    )
+                    .addOnSuccessListener(unused -> {
+                        // עדכון בתת-אוסף של המשתמש
+                        db.collection("Users").document(ownerId)
+                                .collection("Dogs").document(dogId)
+                                .update(
+                                        "name", name,
+                                        "race", race,
+                                        "age", Integer.parseInt(age),
+                                        "birthday", birthday,
+                                        "weight", weight,
+                                        "allergies", allergies,
+                                        "vaccines", vaccines,
+                                        "bio", bio
+                                );
+                    });
+        } else {
+            // יצירת כלב חדש (אולי לא יקרה, אבל למקרה ולא נמצא dogId)
+            FirestoreUserHelper.addDogProfile(
+                    dogId,
+                    name,
+                    race,
+                    Integer.parseInt(age),
+                    birthday,
+                    weight,
+                    allergies,
+                    vaccines,
+                    bio,
+                    ownerId,
+                    vet,
+                    null
+            );
         }
 
-        Toast.makeText(getContext(), "Profile saved", Toast.LENGTH_SHORT).show();
-        navigateToHome(bio, age, name);
-    }
+        // עדכון מקומי
+        saveLocally(name, birthday, weight, race, allergies, vaccines, age, bio, dogId);
 
+        // טיפול בתמונות
+        if (selectedImageUri != null) {
+            uploadImageToFirebase(selectedImageUri);
+        }
+
+        // עדכון HomeFragment
+        Bundle result = new Bundle();
+        result.putString("updatedBio", bio);
+        result.putString("updatedDogAge", age);
+        result.putString("updatedUserName", name);
+        result.putString("race", race);
+        result.putString("birthday", birthday);
+        result.putString("weight", weight);
+        result.putString("allergies", allergies);
+        result.putString("vaccines", vaccines);
+        result.putString("dogId", dogId);
+
+        if (selectedImageUri != null) {
+            result.putString("updatedImageUri", selectedImageUri.toString());
+        }
+
+        getParentFragmentManager().setFragmentResult("editProfileKey", result);
+
+        Toast.makeText(getContext(), "Profile saved", Toast.LENGTH_SHORT).show();
+        navigateBack();
+    }
 
     private String calculateDogAge(String birthday) {
         if (birthday.isEmpty()) return "0";
@@ -196,7 +304,11 @@ public class EditProfileFragment extends Fragment {
         );
 
         vetId = sharedPreferences.getString("vetId", "");
-        dogId = sharedPreferences.getString("dogId", "");
+
+        // אם יש dogId בארגומנטים, השתמש בו במקום בזה שב-SharedPreferences
+        if (dogId == null || dogId.isEmpty()) {
+            dogId = sharedPreferences.getString("dogId", "");
+        }
 
         editName.setText(user.getName());
         editBirthday.setText(user.getBirthday());

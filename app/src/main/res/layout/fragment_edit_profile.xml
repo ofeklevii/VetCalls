@@ -32,9 +32,7 @@
                 android:scaleType="centerCrop"
                 android:layout_marginBottom="16dp"
                 android:background="@drawable/circle_shape"
-                android:clipToOutline="true"
-
-                />
+                android:clipToOutline="true" />
 
             <Button
                 android:id="@+id/changeProfilePicButton"
@@ -107,16 +105,37 @@
                 android:inputType="text"
                 android:layout_marginBottom="16dp" />
 
-            <!-- Save Button -->
-            <Button
-                android:id="@+id/saveButton"
+            <!-- Buttons in horizontal row -->
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Save Changes"
-                android:textColor="#FFFFFF"
-                android:backgroundTint="#29B6F6"
-                android:elevation="4dp"
-                android:layout_marginBottom="16dp" />
+                android:orientation="horizontal"
+                android:layout_marginBottom="16dp">
+
+                <!-- Cancel Button -->
+                <Button
+                    android:id="@+id/cancelButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Cancel"
+                    android:textColor="#FFFFFF"
+                    android:backgroundTint="#757575"
+                    android:elevation="4dp"
+                    android:layout_marginEnd="8dp" />
+
+                <!-- Save Button -->
+                <Button
+                    android:id="@+id/saveButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Save Changes"
+                    android:textColor="#FFFFFF"
+                    android:backgroundTint="#29B6F6"
+                    android:elevation="4dp"
+                    android:layout_marginStart="8dp" />
+            </LinearLayout>
         </LinearLayout>
     </ScrollView>
 
