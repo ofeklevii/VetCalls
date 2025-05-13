@@ -12,9 +12,15 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.vetcalls.R;
 
+import java.util.regex.Pattern;
+
 public class SignUpActivity extends AppCompatActivity {
 
     private EditText emailEditText;
+    // ביטוי רגולרי לבדיקת פורמט אימייל תקין (כולל דומיין)
+    private static final Pattern EMAIL_PATTERN = Pattern.compile(
+            "[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}"
+    );
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -23,6 +29,7 @@ public class SignUpActivity extends AppCompatActivity {
 
         emailEditText = findViewById(R.id.emailInput);
         Button nextButton = findViewById(R.id.nextButton);
+        Button backToLoginButton = findViewById(R.id.backToLoginButton);
 
         nextButton.setOnClickListener(view -> {
             String email = emailEditText.getText().toString().trim();
@@ -33,12 +40,27 @@ public class SignUpActivity extends AppCompatActivity {
                 intent.putExtra("email", email);
                 startActivity(intent);
             } else {
-                Toast.makeText(this, "Please enter a valid email address", Toast.LENGTH_SHORT).show();
+                // הודעת שגיאה מפורטת יותר
+                Toast.makeText(this, "Please enter a valid email address (e.g. name@gmail.com)", Toast.LENGTH_SHORT).show();
             }
+        });
+
+        // טיפול בלחיצה על כפתור החזרה למסך הלוגין
+        backToLoginButton.setOnClickListener(view -> {
+            // מעבר למסך הלוגין
+            Intent intent = new Intent(SignUpActivity.this, LoginActivity.class);
+            startActivity(intent);
+            finish(); // סגירת האקטיביטי הנוכחית
         });
     }
 
     private boolean isValidEmail(String email) {
-        return !TextUtils.isEmpty(email) && Patterns.EMAIL_ADDRESS.matcher(email).matches();
+        // בדיקה שהשדה לא ריק והאימייל תואם את התבנית
+        if (TextUtils.isEmpty(email)) {
+            return false;
+        }
+
+        // בדיקה מורכבת יותר באמצעות ביטוי רגולרי
+        return EMAIL_PATTERN.matcher(email).matches() && email.contains("@") && email.contains(".");
     }
 }

@@ -11,7 +11,9 @@ public class User {
     public String birthday;
     public Boolean isVet;
 
+    public User(){
 
+    }
 
     public User(String email, String vaccines, String allergies, String race, String weight, String name, String birthday, Boolean isVet
     ) {

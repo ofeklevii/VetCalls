@@ -1,7 +1,6 @@
 package com.example.vetcalls.usersFragment;
 
 import android.content.Context;
-import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Bundle;
@@ -13,6 +12,8 @@ import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
+import androidx.appcompat.app.AlertDialog;
+import android.content.Intent;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -29,16 +30,18 @@ import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
+import com.example.vetcalls.obj.FirestoreUserHelper;
+import com.example.vetcalls.activities.LoginActivity;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.HashSet;
+import java.util.Set;
 
 public class HomeFragment extends Fragment implements DogProfileAdapter.OnDogClickListener {
 
     private static final String TAG = "HomeFragment";
-    private Button editProfileButton, addDogButton;
+    private Button editProfileButton, addDogButton, deleteAccountButton;
     private TextView bioTextView, dogAge, userName;
     private ImageView profilePic;
     private RecyclerView dogRecyclerView;
@@ -52,18 +55,30 @@ public class HomeFragment extends Fragment implements DogProfileAdapter.OnDogCli
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_home, container, false);
 
+        // Initialize UI components
         bioTextView = view.findViewById(R.id.bioText);
         dogAge = view.findViewById(R.id.dogAge);
         userName = view.findViewById(R.id.userName);
         profilePic = view.findViewById(R.id.profilePic);
         editProfileButton = view.findViewById(R.id.editProfileButton);
         addDogButton = view.findViewById(R.id.addDogButton);
+        deleteAccountButton = view.findViewById(R.id.deleteAccountButton);
 
-        addDogButton.setOnClickListener(v -> requireActivity().getSupportFragmentManager().beginTransaction()
-                .replace(R.id.fragment_container, new AddDogProfileFragment())
-                .addToBackStack(null)
-                .commit());
+        // Set up Add Dog button to launch Add Dog Fragment
+        addDogButton.setOnClickListener(v -> {
+            // Create new EditProfileFragment with null dogId to indicate new dog
+            EditProfileFragment addDogFragment = new EditProfileFragment();
+            Bundle args = new Bundle();
+            args.putString("dogId", ""); // Empty string indicates new dog
+            addDogFragment.setArguments(args);
 
+            requireActivity().getSupportFragmentManager().beginTransaction()
+                    .replace(R.id.fragment_container, addDogFragment)
+                    .addToBackStack(null)
+                    .commit();
+        });
+
+        // Set up RecyclerView for dog profiles
         dogRecyclerView = view.findViewById(R.id.dogRecyclerView);
         dogRecyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
 
@@ -72,11 +87,13 @@ public class HomeFragment extends Fragment implements DogProfileAdapter.OnDogCli
 
         sharedPreferences = requireActivity().getSharedPreferences("UserProfile", Context.MODE_PRIVATE);
 
-        addTestDogIfEmpty();
+        // Clear initial display
+        clearTopProfileDisplay();
 
-        loadSavedData();
+        // Load data from Firestore
         loadAllDogProfilesFromFirestore();
 
+        // Handle results from EditProfileFragment
         getParentFragmentManager().setFragmentResultListener("editProfileKey", this, (requestKey, bundle) -> {
             String updatedBio = bundle.getString("updatedBio");
             String updatedDogAge = bundle.getString("updatedDogAge");
@@ -88,34 +105,24 @@ public class HomeFragment extends Fragment implements DogProfileAdapter.OnDogCli
             String allergies = bundle.getString("allergies");
             String vaccines = bundle.getString("vaccines");
             String dogId = bundle.getString("dogId");
+            boolean isNewDog = bundle.getBoolean("isNewDog", false);
 
-            if (updatedBio != null) bioTextView.setText(updatedBio);
-            if (updatedDogAge != null) dogAge.setText("Age: " + updatedDogAge);
-            if (updatedUserName != null) userName.setText(updatedUserName);
-            if (updatedImageUri != null) {
-                Glide.with(requireContext()).load(Uri.parse(updatedImageUri)).circleCrop().into(profilePic);
-                sharedPreferences.edit().putString("profileImageUrl", updatedImageUri).apply();
-            }
+            Log.d(TAG, "Received fragment result with dogId: " + dogId + ", isNewDog: " + isNewDog);
 
-            SharedPreferences.Editor editor = sharedPreferences.edit();
-            editor.putString("name", updatedUserName);
-            editor.putString("age", updatedDogAge);
-            editor.putString("bio", updatedBio);
-            if (race != null) editor.putString("race", race);
-            if (birthday != null) editor.putString("birthday", birthday);
-            if (weight != null) editor.putString("weight", weight);
-            if (allergies != null) editor.putString("allergies", allergies);
-            if (vaccines != null) editor.putString("vaccines", vaccines);
-            if (dogId != null) editor.putString("dogId", dogId);
-            editor.apply();
-
+            // Create updated dog profile object
             if (dogId != null) {
-                currentDogProfile = new DogProfile(
+                // Get image URL from either updated or previous value
+                String imageUrl = updatedImageUri;
+                if (imageUrl == null || imageUrl.isEmpty()) {
+                    imageUrl = sharedPreferences.getString("profileImageUrl", null);
+                }
+
+                DogProfile updatedDog = new DogProfile(
                         dogId,
                         updatedUserName,
                         updatedDogAge,
                         updatedBio,
-                        updatedImageUri,
+                        imageUrl,
                         race,
                         birthday,
                         weight,
@@ -124,21 +131,57 @@ public class HomeFragment extends Fragment implements DogProfileAdapter.OnDogCli
                         FirebaseAuth.getInstance().getCurrentUser().getUid(),
                         null
                 );
-                currentDogProfile.setCurrent(true);
-                adapter.setCurrentDog(currentDogProfile);
-            }
 
-            loadAllDogProfilesFromFirestore();
+                // Update current dog profile
+                currentDogProfile = updatedDog;
+                currentDogProfile.setCurrent(true);
+
+                Log.d(TAG, "Created updated dog profile: " + updatedDog.getName());
+
+                // Update dog list - check if dog already exists
+                boolean dogExists = false;
+                for (int i = 0; i < dogList.size(); i++) {
+                    if (dogList.get(i).getId() != null && dogList.get(i).getId().equals(dogId)) {
+                        // Dog exists, update it and mark as current
+                        dogList.set(i, updatedDog);
+                        dogExists = true;
+                        Log.d(TAG, "Updated existing dog in list");
+                        break;
+                    }
+                }
+
+                // If it's a new dog, add to list
+                if (!dogExists) {
+                    dogList.add(updatedDog);
+                    Log.d(TAG, "Added new dog to list");
+                }
+
+                // Update UI immediately
+                organizeDogsAndUpdateUI();
+
+                // Save the current dog ID in SharedPreferences
+                SharedPreferences.Editor editor = sharedPreferences.edit();
+                editor.putString("dogId", dogId);
+                editor.apply();
+
+                // Refresh from server after immediate refresh
+                loadAllDogProfilesFromFirestore();
+            }
         });
 
+        // Set up edit profile button
         editProfileButton.setOnClickListener(v -> {
             Bundle args = new Bundle();
             if (currentDogProfile != null && currentDogProfile.getId() != null) {
                 args.putString("dogId", currentDogProfile.getId());
+                Log.d(TAG, "Launching edit with current dog: " + currentDogProfile.getId());
             } else {
                 String savedDogId = sharedPreferences.getString("dogId", null);
                 if (savedDogId != null) {
                     args.putString("dogId", savedDogId);
+                    Log.d(TAG, "Launching edit with saved dog: " + savedDogId);
+                } else {
+                    Log.d(TAG, "Launching edit with new dog (no ID)");
                 }
             }
 
@@ -151,77 +194,66 @@ public class HomeFragment extends Fragment implements DogProfileAdapter.OnDogCli
                     .commit();
         });
 
+        deleteAccountButton.setOnClickListener(v -> showDeleteAccountDialog());
+
         return view;
     }
 
-    private void addTestDogIfEmpty() {
-        if (dogList.isEmpty()) {
-            DogProfile testDog = new DogProfile(
-                    "test123",
-                    "TestDog",
-                    "5",
-                    "Test Bio",
-                    null,
-                    "Golden Retriever",
-                    "2020-01-01",
-                    "25",
-                    "None",
-                    "None",
-                    FirebaseAuth.getInstance().getCurrentUser() != null ?
-                            FirebaseAuth.getInstance().getCurrentUser().getUid() : "",
-                    null
-            );
-            testDog.setCurrent(true);
-            dogList.add(testDog);
-            Log.d(TAG, "Added test dog to list: " + testDog.getName());
-        }
-    }
+    // Show confirmation dialog for account deletion
+    private void showDeleteAccountDialog() {
+        new AlertDialog.Builder(requireContext())
+                .setTitle("מחיקת חשבון")
+                .setMessage("האם אתה בטוח שברצונך למחוק את החשבון שלך? פעולה זו תמחק את כל הנתונים הקשורים לחשבון שלך ואינה ניתנת לביטול.")
+                .setPositiveButton("כן, מחק", (dialog, which) -> {
+                    // Show loading dialog
+                    AlertDialog loadingDialog = new AlertDialog.Builder(requireContext())
+                            .setMessage("מוחק חשבון...")
+                            .setCancelable(false)
+                            .create();
+                    loadingDialog.show();
 
-    private void loadSavedData() {
-        userName.setText(sharedPreferences.getString("name", "No Name"));
-        dogAge.setText("Age: " + sharedPreferences.getString("age", "Unknown"));
-        bioTextView.setText(sharedPreferences.getString("bio", "No Information"));
+                    // Call delete function
+                    FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
+                    if (currentUser != null) {
+                        String userId = currentUser.getUid();
+                        FirestoreUserHelper.deleteUserCompletely(userId,
+                                () -> {
+                                    // Success
+                                    if (loadingDialog.isShowing()) {
+                                        loadingDialog.dismiss();
+                                    }
+                                    Toast.makeText(requireContext(), "החשבון נמחק בהצלחה", Toast.LENGTH_LONG).show();
 
-        String imageUrl = sharedPreferences.getString("profileImageUrl", null);
-        if (imageUrl != null && !imageUrl.isEmpty()) {
-            Glide.with(this).load(Uri.parse(imageUrl)).circleCrop().into(profilePic);
-        } else {
-            profilePic.setImageResource(R.drawable.user_person_profile_avatar_icon_190943);
-        }
-
-        String dogId = sharedPreferences.getString("dogId", null);
-        if (dogId != null) {
-            loadCurrentDogFromFirestore(dogId);
-        }
-    }
-
-    private void loadCurrentDogFromFirestore(String dogId) {
-        Log.d(TAG, "Loading current dog from Firestore: " + dogId);
-        FirebaseFirestore.getInstance()
-                .collection("DogProfiles")
-                .document(dogId)
-                .get()
-                .addOnSuccessListener(documentSnapshot -> {
-                    if (documentSnapshot.exists()) {
-                        try {
-                            currentDogProfile = createDogProfileFromDocument(documentSnapshot);
-                            currentDogProfile.setCurrent(true);
-                            Log.d(TAG, "Current dog loaded: " + currentDogProfile.getName());
-
-                            if (adapter != null) {
-                                adapter.setCurrentDog(currentDogProfile);
-                            }
-                        } catch (Exception e) {
-                            Log.e(TAG, "Error creating dog profile from document: " + e.getMessage());
-                            Toast.makeText(requireContext(), "Error loading dog profile", Toast.LENGTH_SHORT).show();
-                        }
+                                    // Return to login screen
+                                    Intent intent = new Intent(requireContext(), LoginActivity.class);
+                                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                                    startActivity(intent);
+                                    requireActivity().finish();
+                                },
+                                () -> {
+                                    // Failure
+                                    if (loadingDialog.isShowing()) {
+                                        loadingDialog.dismiss();
+                                    }
+                                    Toast.makeText(requireContext(), "שגיאה במחיקת החשבון, נסה שוב מאוחר יותר", Toast.LENGTH_LONG).show();
+                                });
                     } else {
-                        Log.d(TAG, "Dog document doesn't exist: " + dogId);
+                        // If no user is logged in
+                        loadingDialog.dismiss();
+                        Toast.makeText(requireContext(), "אתה לא מחובר למערכת", Toast.LENGTH_SHORT).show();
                     }
                 })
-                .addOnFailureListener(e -> {
-                    Log.e(TAG, "Error loading dog: " + e.getMessage());
-                });
+                .setNegativeButton("לא, בטל", null)
+                .show();
+    }
+
+    // Function to clear the top profile display
+    private void clearTopProfileDisplay() {
+        userName.setText("Username");
+        dogAge.setText("Age");
+        bioTextView.setText("Your bio goes here...");
+        profilePic.setImageResource(R.drawable.user_person_profile_avatar_icon_190943);
+        currentDogProfile = null;
     }
 
     private void loadAllDogProfilesFromFirestore() {
@@ -234,6 +266,9 @@ public class HomeFragment extends Fragment implements DogProfileAdapter.OnDogCli
         String userId = currentUser.getUid();
         Log.d(TAG, "Loading dogs for user: " + userId);
 
+        // Clear existing list
+        dogList.clear();
+
         FirebaseFirestore.getInstance()
                 .collection("Users")
                 .document(userId)
@@ -241,76 +276,86 @@ public class HomeFragment extends Fragment implements DogProfileAdapter.OnDogCli
                 .get()
                 .addOnSuccessListener(queryDocumentSnapshots -> {
                     Log.d(TAG, "Got result with " + queryDocumentSnapshots.size() + " documents");
-                    dogList.clear();
 
+                    // If no dogs at all - leave screen empty
                     if (queryDocumentSnapshots.isEmpty()) {
-                        addTestDogIfEmpty();
+                        adapter.notifyDataSetChanged();
+                        clearTopProfileDisplay();
+                        return;
                     }
 
-                    for (QueryDocumentSnapshot doc : queryDocumentSnapshots) {
-                        Log.d(TAG, "Processing dog document: " + doc.getId());
+                    // Check if collection contains only references or all data
+                    DocumentSnapshot firstDoc = queryDocumentSnapshots.getDocuments().get(0);
 
-                        try {
-                            // בגלל בעיות ההמרה, נשתמש בשיטה ידנית במקום toObject()
-                            String name = doc.getString("name");
-
-                            // טיפול בשדה הגיל - יכול להיות מספר או מחרוזת
-                            String age;
-                            Object ageObj = doc.get("age");
-                            if (ageObj instanceof Long) {
-                                age = String.valueOf(doc.getLong("age"));
-                            } else if (ageObj instanceof String) {
-                                age = doc.getString("age");
-                            } else {
-                                age = "Unknown";
+                    // Check if has only dogId (then it's a reference)
+                    if (firstDoc.contains("dogId") && !firstDoc.contains("bio")) {
+                        // New structure - first read references
+                        List<String> dogIds = new ArrayList<>();
+                        for (DocumentSnapshot doc : queryDocumentSnapshots.getDocuments()) {
+                            String dogId = doc.getString("dogId");
+                            if (dogId != null) {
+                                dogIds.add(dogId);
                             }
-
-                            String bio = doc.getString("bio");
-                            String imageUrl = doc.getString("imageUrl");
-                            String race = doc.getString("race");
-                            String birthday = doc.getString("birthday");
-                            String weight = doc.getString("weight");
-                            String allergies = doc.getString("allergies");
-                            String vaccines = doc.getString("vaccines");
-                            String ownerId = doc.getString("ownerId");
-                            String vetId = doc.getString("vetId");
-
-                            DogProfile dogProfile = new DogProfile(
-                                    doc.getId(),
-                                    name != null ? name : "",
-                                    age != null ? age : "",
-                                    bio,
-                                    imageUrl,
-                                    race,
-                                    birthday,
-                                    weight,
-                                    allergies,
-                                    vaccines,
-                                    ownerId,
-                                    vetId
-                            );
-
-                            // אם הכלב הנוכחי הוא זה שמוצג עכשיו, מעדכנים את הסטטוס שלו
-                            if (currentDogProfile != null &&
-                                    dogProfile.getId() != null &&
-                                    dogProfile.getId().equals(currentDogProfile.getId())) {
-                                dogProfile.setCurrent(true);
-                            }
-
-                            dogList.add(dogProfile);
-                        } catch (Exception e) {
-                            Log.e(TAG, "Error processing dog document: " + e.getMessage());
                         }
-                    }
 
-                    // אם יש כלב נוכחי, נעביר אותו לתוך האדפטר
-                    if (currentDogProfile != null) {
-                        adapter.setCurrentDog(currentDogProfile);
-                    } else if (!dogList.isEmpty()) {
-                        currentDogProfile = dogList.get(0);
-                        currentDogProfile.setCurrent(true);
+                        // Now load dogs from DogProfiles collection
+                        if (!dogIds.isEmpty()) {
+                            loadDogsFromDogProfiles(dogIds);
+                        } else {
+                            adapter.notifyDataSetChanged();
+                        }
+                    } else {
+                        // Old structure - everything is in subcollection
+                        for (QueryDocumentSnapshot doc : queryDocumentSnapshots) {
+                            try {
+                                String name = doc.getString("name");
+
+                                // Handle age field - can be number or string
+                                String age;
+                                Object ageObj = doc.get("age");
+                                if (ageObj instanceof Long) {
+                                    age = String.valueOf(doc.getLong("age"));
+                                } else if (ageObj instanceof String) {
+                                    age = doc.getString("age");
+                                } else {
+                                    age = "Unknown";
+                                }
+
+                                String bio = doc.getString("bio");
+                                String imageUrl = doc.getString("imageUrl");
+                                String race = doc.getString("race");
+                                String birthday = doc.getString("birthday");
+                                String weight = doc.getString("weight");
+                                String allergies = doc.getString("allergies");
+                                String vaccines = doc.getString("vaccines");
+                                String ownerId = doc.getString("ownerId");
+                                String vetId = doc.getString("vetId");
+
+                                DogProfile dogProfile = new DogProfile(
+                                        doc.getId(),
+                                        name != null ? name : "",
+                                        age != null ? age : "",
+                                        bio,
+                                        imageUrl,
+                                        race,
+                                        birthday,
+                                        weight,
+                                        allergies,
+                                        vaccines,
+                                        ownerId,
+                                        vetId
+                                );
+
+                                // Add dog to list
+                                dogList.add(dogProfile);
+                            } catch (Exception e) {
+                                Log.e(TAG, "Error processing dog document: " + e.getMessage());
+                            }
+                        }
+
+                        // Organize list and update UI
+                        organizeDogsAndUpdateUI();
                     }
-                    adapter.notifyDataSetChanged();
                 })
                 .addOnFailureListener(e -> {
                     Log.e(TAG, "Error loading dog profiles: " + e.getMessage());
@@ -318,12 +363,226 @@ public class HomeFragment extends Fragment implements DogProfileAdapter.OnDogCli
                 });
     }
 
+    // Function to load dogs from DogProfiles collection - prevents duplicates
+    private void loadDogsFromDogProfiles(List<String> dogIds) {
+        // Clear existing list
+        dogList.clear();
+
+        // Track dog IDs already loaded
+        Set<String> loadedDogIds = new HashSet<>();
+
+        // Track number of dogs loaded
+        final int[] loadedCount = {0};
+        final int totalCount = dogIds.size();
+
+        for (String dogId : dogIds) {
+            // Skip dogs already loaded
+            if (loadedDogIds.contains(dogId)) {
+                // Update loading counter
+                loadedCount[0]++;
+                if (loadedCount[0] >= totalCount) {
+                    organizeDogsAndUpdateUI();
+                }
+                continue;
+            }
+
+            // Add ID to tracking
+            loadedDogIds.add(dogId);
+
+            FirebaseFirestore.getInstance()
+                    .collection("DogProfiles")
+                    .document(dogId)
+                    .get()
+                    .addOnSuccessListener(document -> {
+                        if (document.exists()) {
+                            try {
+                                DogProfile dogProfile = createDogProfileFromDocument(document);
+
+                                // Prevent adding dog with same ID
+                                boolean isDuplicate = false;
+                                for (DogProfile existingDog : dogList) {
+                                    if (existingDog.getId() != null &&
+                                            existingDog.getId().equals(dogProfile.getId())) {
+                                        isDuplicate = true;
+                                        break;
+                                    }
+                                }
+
+                                if (!isDuplicate) {
+                                    // Check if this is the current dog
+                                    String currentDogId = sharedPreferences.getString("dogId", null);
+                                    if (currentDogId != null && currentDogId.equals(dogProfile.getId())) {
+                                        currentDogProfile = dogProfile;
+                                        dogProfile.setCurrent(true);
+                                    }
+
+                                    // Add dog to list
+                                    dogList.add(dogProfile);
+                                }
+                            } catch (Exception e) {
+                                Log.e(TAG, "Error creating dog profile: " + e.getMessage());
+                            }
+                        }
+
+                        // Check if all dogs are loaded
+                        loadedCount[0]++;
+                        if (loadedCount[0] >= totalCount) {
+                            // Organize list and update UI
+                            organizeDogsAndUpdateUI();
+                        }
+                    })
+                    .addOnFailureListener(e -> {
+                        Log.e(TAG, "Error loading dog profile: " + e.getMessage());
+
+                        // Even in case of error, continue checking if all dogs loaded
+                        loadedCount[0]++;
+                        if (loadedCount[0] >= totalCount) {
+                            organizeDogsAndUpdateUI();
+                        }
+                    });
+        }
+    }
+
+    // Updated function to organize list and update user interface
+    private void organizeDogsAndUpdateUI() {
+        if (dogList.isEmpty()) {
+            clearTopProfileDisplay();
+            adapter.notifyDataSetChanged();
+            return;
+        }
+
+        // Find current dog
+        String savedDogId = sharedPreferences.getString("dogId", null);
+        DogProfile topDogProfile = null;
+        boolean foundCurrentDog = false;
+
+        // If there's a saved dog ID in preferences, find it in the list
+        if (savedDogId != null && !savedDogId.isEmpty()) {
+            for (DogProfile dog : dogList) {
+                if (dog.getId() != null && dog.getId().equals(savedDogId)) {
+                    // Found the saved dog
+                    topDogProfile = dog;
+                    currentDogProfile = dog;
+                    dog.setCurrent(true);
+                    foundCurrentDog = true;
+                    break;
+                }
+            }
+        }
+
+        // If saved dog not found (or no saved dog), take the first one
+        if (!foundCurrentDog && !dogList.isEmpty()) {
+            topDogProfile = dogList.get(0);
+            currentDogProfile = topDogProfile;
+            currentDogProfile.setCurrent(true);
+
+            // Save current dog ID
+            sharedPreferences.edit()
+                    .putString("dogId", currentDogProfile.getId())
+                    .apply();
+        }
+
+        // Update top display
+        if (topDogProfile != null) {
+            updateTopProfileDisplay(topDogProfile);
+        }
+
+        // Create filtered list without duplicates and without current dog
+        List<DogProfile> filteredList = new ArrayList<>();
+
+        // Track dog IDs already added
+        Set<String> addedDogIds = new HashSet<>();
+
+        // If there's a current dog, add its ID to tracking
+        if (currentDogProfile != null && currentDogProfile.getId() != null) {
+            addedDogIds.add(currentDogProfile.getId());
+        }
+
+        // Add dogs to filtered list - only if they're not the current dog and not already added
+        for (DogProfile dog : dogList) {
+            if (dog.getId() == null) continue; // Skip dogs without ID
+
+            // If dog is not current dog and not already added
+            if (!addedDogIds.contains(dog.getId())) {
+                // Mark this dog as not current
+                dog.setCurrent(false);
+                // Add dog to filtered list
+                filteredList.add(dog);
+                // Add ID to tracking
+                addedDogIds.add(dog.getId());
+            }
+        }
+
+        // Update list in adapter
+        adapter.updateDogList(filteredList);
+        adapter.notifyDataSetChanged();
+    }
+
+    // Function to update top display with dog data
+    private void updateTopProfileDisplay(DogProfile dog) {
+        if (dog != null) {
+            // Dog name
+            userName.setText(dog.getName());
+
+            // Dog age
+            String age = dog.getAge();
+            if (age != null && !age.isEmpty()) {
+                dogAge.setText("Age: " + age);
+            } else {
+                dogAge.setText("Age: Unknown");
+            }
+
+            // Dog bio
+            String bio = dog.getBio();
+            if (bio != null && !bio.isEmpty()) {
+                bioTextView.setText(bio);
+            } else {
+                // Create bio from available data
+                StringBuilder bioBuilder = new StringBuilder();
+
+                if (dog.getRace() != null && !dog.getRace().isEmpty()) {
+                    bioBuilder.append("Race: ").append(dog.getRace()).append("\n");
+                }
+
+                if (dog.getWeight() != null && !dog.getWeight().isEmpty()) {
+                    bioBuilder.append("Weight: ").append(dog.getWeight()).append(" kg\n");
+                }
+
+                if (dog.getAllergies() != null && !dog.getAllergies().isEmpty()) {
+                    bioBuilder.append("Allergies: ").append(dog.getAllergies()).append("\n");
+                }
+
+                if (dog.getVaccines() != null && !dog.getVaccines().isEmpty()) {
+                    bioBuilder.append("Vaccines: ").append(dog.getVaccines());
+                }
+
+                String builtBio = bioBuilder.toString().trim();
+                if (!builtBio.isEmpty()) {
+                    bioTextView.setText(builtBio);
+                } else {
+                    bioTextView.setText("No information available");
+                }
+            }
+
+            // Profile picture
+            String imageUrl = dog.getImageUrl();
+            if (imageUrl != null && !imageUrl.isEmpty()) {
+                Glide.with(requireContext())
+                        .load(imageUrl)
+                        .circleCrop()
+                        .into(profilePic);
+            } else {
+                profilePic.setImageResource(R.drawable.user_person_profile_avatar_icon_190943);
+            }
+        }
+    }
+
     private DogProfile createDogProfileFromDocument(DocumentSnapshot document) {
         try {
-            // במקום להשתמש ב-toObject, נבנה את האובייקט בעצמנו
+            // Instead of using toObject, build object manually
             String id = document.getId();
 
-            // טיפול בשדה הגיל - יכול להיות מספר או מחרוזת
+            // Handle age field - can be number or string
             String age;
             Object ageObj = document.get("age");
             if (ageObj instanceof Long) {
@@ -334,12 +593,19 @@ public class HomeFragment extends Fragment implements DogProfileAdapter.OnDogCli
                 age = "Unknown";
             }
 
+            // Try both profileImageUrl and imageUrl fields
+            String imageUrl = document.getString("profileImageUrl");
+            if (imageUrl == null || imageUrl.isEmpty()) {
+                imageUrl = document.getString("imageUrl");
+            }
+
+            // Create dog with all data
             return new DogProfile(
                     id,
                     document.getString("name"),
                     age,
                     document.getString("bio"),
-                    document.getString("imageUrl"),
+                    imageUrl,
                     document.getString("race"),
                     document.getString("birthday"),
                     document.getString("weight"),
@@ -350,7 +616,7 @@ public class HomeFragment extends Fragment implements DogProfileAdapter.OnDogCli
             );
         } catch (Exception e) {
             Log.e(TAG, "Error in createDogProfileFromDocument: " + e.getMessage());
-            // במקרה של שגיאה, ננסה לבנות אובייקט חלקי
+            // In case of error, try to build partial object
             return new DogProfile(
                     document.getId(),
                     document.getString("name") != null ? document.getString("name") : "Unknown Dog",
@@ -370,24 +636,62 @@ public class HomeFragment extends Fragment implements DogProfileAdapter.OnDogCli
 
     @Override
     public void onDogClick(DogProfile dogProfile) {
-        Log.d(TAG, "Clicked on dog: " + dogProfile.getName());
+        Log.d(TAG, "Dog clicked: " + dogProfile.getName());
 
-        if (currentDogProfile != null) {
-            currentDogProfile.setCurrent(false);
-        }
+        // Save the new dog ID as current
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        editor.putString("dogId", dogProfile.getId());
 
+        // Also save other details for quick access
+        editor.putString("name", dogProfile.getName());
+        editor.putString("age", dogProfile.getAge());
+        editor.putString("race", dogProfile.getRace());
+        editor.putString("bio", dogProfile.getBio());
+        editor.putString("birthday", dogProfile.getBirthday());
+        editor.putString("weight", dogProfile.getWeight());
+        editor.putString("allergies", dogProfile.getAllergies());
+        editor.putString("vaccines", dogProfile.getVaccines());
+        editor.putString("profileImageUrl", dogProfile.getImageUrl());
+        editor.apply();
+
+        // Update current dog reference
         currentDogProfile = dogProfile;
-        dogProfile.setCurrent(true);
 
-        adapter.setCurrentDog(dogProfile);
+        // Update top display with clicked dog
+        updateTopProfileDisplay(dogProfile);
 
-        loadAllDogProfilesFromFirestore();
+        // Reorganize the list (moved clicked dog to top)
+        organizeDogsAndUpdateUI();
     }
 
     @Override
     public void onResume() {
         super.onResume();
+
+        // Refresh data from both SharedPreferences and Firestore
+        String name = sharedPreferences.getString("name", null);
+        String age = sharedPreferences.getString("age", null);
+        String bio = sharedPreferences.getString("bio", null);
+        String profileImageUrl = sharedPreferences.getString("profileImageUrl", null);
+
+        // Update display if there's data
+        if (name != null && !name.isEmpty()) {
+            userName.setText(name);
+        }
+        if (age != null && !age.isEmpty()) {
+            dogAge.setText("Age: " + age);
+        }
+        if (bio != null && !bio.isEmpty()) {
+            bioTextView.setText(bio);
+        }
+        if (profileImageUrl != null && !profileImageUrl.isEmpty()) {
+            Glide.with(this)
+                    .load(profileImageUrl)
+                    .circleCrop()
+                    .into(profilePic);
+        }
+
+        // Refresh list from server
         loadAllDogProfilesFromFirestore();
-        loadSavedData(); // רענון המידע מה-SharedPreferences
     }
 }

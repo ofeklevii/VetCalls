@@ -28,6 +28,7 @@ public class SignUpPasswordActivity extends AppCompatActivity {
         passwordEditText = findViewById(R.id.passwordEditText);
         vetSwitch = findViewById(R.id.vetCheck);
         Button finishButton = findViewById(R.id.finishButton);
+        Button backButton = findViewById(R.id.backButton);
 
         firebaseAuth = FirebaseAuth.getInstance();
         String email = getIntent().getStringExtra("email");
@@ -53,12 +54,21 @@ public class SignUpPasswordActivity extends AppCompatActivity {
                             }
                         });
             } else {
-                Toast.makeText(this, "Password must start with a capital letter and contain only letters or numbers", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Password must start with a capital letter, contain only letters or numbers, and be at least 6 characters long", Toast.LENGTH_SHORT).show();
             }
+        });
+
+        // טיפול בלחיצה על כפתור החזרה
+        backButton.setOnClickListener(v -> {
+            // חזרה למסך הקודם (Sign Up)
+            onBackPressed(); // זה יחזיר אותך למסך הקודם בערימת הפעילויות
+            // לחלופין, אפשר להשתמש גם ב:
+            // finish();
         });
     }
 
     private boolean isValidPassword(String password) {
-        return password.matches("^[A-Z][a-zA-Z0-9]*$");
+        // בדיקה שהסיסמה מתחילה באות גדולה, מכילה רק אותיות ומספרים, ובאורך של לפחות 6 תווים
+        return password.matches("^[A-Z][a-zA-Z0-9]{5,}$");
     }
 }

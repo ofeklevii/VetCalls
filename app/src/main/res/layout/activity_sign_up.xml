@@ -33,5 +33,13 @@
         android:backgroundTint="@color/blue"
         android:layout_marginTop="16dp" />
 
+    <Button
+        android:id="@+id/backToLoginButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Back to Login"
+        android:backgroundTint="#A0A0A0"
+        android:layout_marginTop="8dp" />
+
 
 </LinearLayout>

@@ -1,21 +1,123 @@
-<!-- res/layout/fragment_vet_home.xml -->
+<?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:orientation="vertical"
     android:layout_height="match_parent"
-    android:padding="12dp">
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="#F5F5F5">
 
+    <ImageView
+        android:id="@+id/vetProfileImage"
+        android:layout_width="150dp"
+        android:layout_height="150dp"
+        android:src="@drawable/user_person_profile_avatar_icon_190943"
+        android:clipToOutline="true"
+        android:background="@drawable/circle_shape"/>
+
+    <!-- שם הווטרינר -->
     <TextView
+        android:id="@+id/vetFullName"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="My Patients"
-        android:textSize="20sp"
+        android:text="Veterinarian [full name]"
+        android:textSize="24sp"
         android:textStyle="bold"
-        android:paddingBottom="8dp"/>
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="8dp"/>
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/recyclerViewPatients"
+    <!-- תת-כותרת מקצועית -->
+    <TextView
+        android:id="@+id/vetSpecialty"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Pet Veterinarian"
+        android:textSize="16sp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="4dp"/>
+
+    <!-- כרטיס מידע -->
+    <androidx.cardview.widget.CardView
         android:layout_width="match_parent"
-        android:layout_height="match_parent"/>
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        app:cardCornerRadius="8dp"
+        app:cardElevation="4dp">
 
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <!-- אימייל -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="8dp">
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/mail"
+                    android:layout_marginEnd="8dp"/>
+
+                <TextView
+                    android:id="@+id/vetEmail"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="veterinarian@email.com"
+                    android:textSize="16sp"/>
+            </LinearLayout>
+
+            <!-- כתובת מרפאה -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="8dp">
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/location"
+                    android:layout_marginEnd="8dp"/>
+
+                <TextView
+                    android:id="@+id/vetClinicAddress"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="רחוב הווטרינרים 12, תל אביב"
+                    android:textSize="16sp"/>
+            </LinearLayout>
+
+            <!-- שעות קבלה -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Reception hours:"
+                android:textStyle="bold"
+                android:textSize="16sp"
+                android:layout_marginTop="8dp"/>
+
+            <TextView
+                android:id="@+id/vetWorkHours"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Sunday - Thursday: 08:00 - 00:00\nFriday: 08:00 - 16:00\nSaturday: 19:00 - 23:00"
+                android:textSize="16sp"/>
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <!-- כפתור עריכת פרופיל -->
+    <Button
+        android:id="@+id/editProfileButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Edit profile"
+        android:layout_marginTop="16dp"
+        style="@style/Widget.MaterialComponents.Button.OutlinedButton"/>
 </LinearLayout>

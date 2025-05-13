@@ -8,15 +8,11 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
-
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.vetcalls.R;
-import com.example.vetcalls.vetFragment.VetHomeFragment;
 import com.google.firebase.auth.FirebaseAuth;
-
 import com.google.firebase.auth.FirebaseUser;
-
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.DocumentSnapshot;
 
@@ -58,7 +54,7 @@ public class LoginActivity extends AppCompatActivity {
                         if (task.isSuccessful()) {
                             FirebaseUser currentUser = firebaseAuth.getCurrentUser();
                             if (currentUser != null) {
-                                checkUserType(currentUser.getUid()); // 🔥 Redirects user correctly
+                                checkUserType(currentUser.getUid());
                             }
                         } else {
                             Toast.makeText(this, "Login failed: " + task.getException().getMessage(), Toast.LENGTH_SHORT).show();
@@ -72,27 +68,24 @@ public class LoginActivity extends AppCompatActivity {
         });
     }
 
-
     private void checkUserType(String userId) {
-        FirebaseFirestore db = FirebaseFirestore.getInstance();  // יצירת אובייקט Firestore
-        db.collection("Users").document(userId)  // גישה למסמך לפי userId
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
+        db.collection("Users").document(userId)
                 .get()
                 .addOnCompleteListener(task -> {
                     if (task.isSuccessful()) {
                         DocumentSnapshot document = task.getResult();
                         if (document.exists()) {
-                            // במקרה שיש מסמך, נוודא את סוג המשתמש
                             Boolean isVet = document.getBoolean("isVet");
 
                             if (isVet != null) {
-                                // שמירת isVet ב-SharedPreferences
                                 SharedPreferences.Editor editor = sharedPreferences.edit();
                                 editor.putBoolean("isVet", isVet);
                                 editor.apply();
 
-                                // ניווט למקום המתאים לפי סוג המשתמש
+                                // ניווט לפי סוג המשתמש
                                 if (isVet) {
-                                    Intent intent = new Intent(LoginActivity.this, VetHomeFragment.class);
+                                    Intent intent = new Intent(LoginActivity.this, VetHomeActivity.class);
                                     startActivity(intent);
                                 } else {
                                     Intent intent = new Intent(LoginActivity.this, HomeActivity.class);
@@ -103,7 +96,6 @@ public class LoginActivity extends AppCompatActivity {
                                 Toast.makeText(LoginActivity.this, "User data is missing 'isVet' field", Toast.LENGTH_SHORT).show();
                             }
                         } else {
-                            // אם אין מסמך ב-Firestore, ניצור אחד
                             createUserDocument(userId);
                         }
                     } else {
@@ -114,17 +106,16 @@ public class LoginActivity extends AppCompatActivity {
 
     private void createUserDocument(String userId) {
         FirebaseFirestore db = FirebaseFirestore.getInstance();
-
-        // בודק אם ה-userID קיים אך חסר מידע
         FirebaseUser currentUser = firebaseAuth.getCurrentUser();
+
         if (currentUser != null) {
             String email = currentUser.getEmail();
-            boolean isVet = false; // Default value is false for a regular user
+            boolean isVet = false; // ברירת מחדל למשתמש רגיל
 
-            // יצירת אובייקט חדש למסמך
-            com.example.vetcalls.obj.User user = new com.example.vetcalls.obj.User(email, null, null, null, null, null, null, isVet);
+            com.example.vetcalls.obj.User user = new com.example.vetcalls.obj.User(
+                    email, null, null, null, null, null, null, isVet);
 
-            db.collection("Users").document(userId)  // שמירת המשתמש במסמך Firestore
+            db.collection("Users").document(userId)
                     .set(user)
                     .addOnCompleteListener(task -> {
                         if (task.isSuccessful()) {
@@ -133,8 +124,7 @@ public class LoginActivity extends AppCompatActivity {
                             editor.putBoolean("isVet", isVet);
                             editor.apply();
 
-                            // ניווט לאזור המתאים
-                            Intent intent = new Intent(LoginActivity.this, HomeActivity.class); // ניווט למשתמש רגיל
+                            Intent intent = new Intent(LoginActivity.this, HomeActivity.class);
                             startActivity(intent);
                             finish();
                         } else {
