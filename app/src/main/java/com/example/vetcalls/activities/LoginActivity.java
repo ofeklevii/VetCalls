@@ -93,7 +93,15 @@ public class LoginActivity extends AppCompatActivity {
                                 }
                                 finish();
                             } else {
-                                Toast.makeText(LoginActivity.this, "User data is missing 'isVet' field", Toast.LENGTH_SHORT).show();
+                                boolean defaultIsVet = false;  // ברירת מחדל למשתמש רגיל
+
+                                SharedPreferences.Editor editor = sharedPreferences.edit();
+                                editor.putBoolean("isVet", defaultIsVet);
+                                editor.apply();
+
+                                Intent intent = new Intent(LoginActivity.this, HomeActivity.class);
+                                startActivity(intent);
+                                finish();
                             }
                         } else {
                             createUserDocument(userId);
