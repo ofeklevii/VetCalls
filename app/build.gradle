@@ -47,6 +47,7 @@ dependencies {
     implementation libs.core.ktx
     implementation libs.glide
     annotationProcessor libs.compiler
+    implementation 'com.google.code.gson:gson:2.8.9'
 
 
 }

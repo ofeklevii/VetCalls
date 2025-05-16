@@ -37,7 +37,10 @@ import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -166,6 +169,9 @@ public class HomeFragment extends Fragment implements DogProfileAdapter.OnDogCli
             saveDogToPreferences(updatedDog);
             organizeDogsAndUpdateUI();
 
+            // Save full dog list to shared preferences
+            saveDogsListToPreferences(dogList);
+
             // Refresh from server
             loadAllDogProfilesFromFirestore();
         });
@@ -229,6 +235,47 @@ public class HomeFragment extends Fragment implements DogProfileAdapter.OnDogCli
         }
 
         editor.apply();
+    }
+
+    // שמירת רשימת הכלבים המלאה לזיכרון המקומי
+    private void saveDogsListToPreferences(List<DogProfile> dogs) {
+        try {
+            // המרת הרשימה למחרוזת JSON
+            Gson gson = new Gson();
+            String dogsJson = gson.toJson(dogs);
+
+            // שמירה בזיכרון המקומי
+            SharedPreferences.Editor editor = sharedPreferences.edit();
+            editor.putString("dogs_list_json", dogsJson);
+            editor.apply();
+
+            Log.d(TAG, "Dogs list saved to SharedPreferences: " + dogs.size() + " dogs");
+        } catch (Exception e) {
+            Log.e(TAG, "Error saving dogs list: " + e.getMessage());
+        }
+    }
+
+    // טעינת רשימת הכלבים מהזיכרון המקומי
+    private List<DogProfile> loadDogsListFromPreferences() {
+        List<DogProfile> dogs = new ArrayList<>();
+
+        try {
+            // שליפת מחרוזת ה-JSON מהזיכרון המקומי
+            String dogsJson = sharedPreferences.getString("dogs_list_json", "");
+
+            if (dogsJson != null && !dogsJson.isEmpty()) {
+                // המרת המחרוזת לרשימת כלבים
+                Gson gson = new Gson();
+                Type listType = new TypeToken<ArrayList<DogProfile>>(){}.getType();
+                dogs = gson.fromJson(dogsJson, listType);
+
+                Log.d(TAG, "Dogs list loaded from SharedPreferences: " + dogs.size() + " dogs");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error loading dogs list: " + e.getMessage());
+        }
+
+        return dogs;
     }
 
     // Show confirmation dialog for account deletion
@@ -369,6 +416,10 @@ public class HomeFragment extends Fragment implements DogProfileAdapter.OnDogCli
 
                         dogList.clear();
                         dogList.addAll(newDogList);
+
+                        // שמירת הרשימה המלאה לזיכרון המקומי
+                        saveDogsListToPreferences(newDogList);
+
                         organizeDogsAndUpdateUI();
                     }
                 })
@@ -422,6 +473,10 @@ public class HomeFragment extends Fragment implements DogProfileAdapter.OnDogCli
         if (loadedCount[0] >= totalCount) {
             dogList.clear();
             dogList.addAll(newDogList);
+
+            // שמירת הרשימה המלאה לזיכרון המקומי
+            saveDogsListToPreferences(newDogList);
+
             organizeDogsAndUpdateUI();
         }
     }
@@ -620,7 +675,20 @@ public class HomeFragment extends Fragment implements DogProfileAdapter.OnDogCli
     @Override
     public void onResume() {
         super.onResume();
+
+        // עדכון הממשק מנתונים מקומיים
         updateFromPreferences();
+
+        // טעינת רשימת הכלבים המלאה מהזיכרון המקומי (תציג מיד)
+        List<DogProfile> savedDogs = loadDogsListFromPreferences();
+        if (!savedDogs.isEmpty()) {
+            Log.d(TAG, "Loaded " + savedDogs.size() + " dogs from SharedPreferences");
+            dogList.clear();
+            dogList.addAll(savedDogs);
+            organizeDogsAndUpdateUI();
+        }
+
+        // טעינה מהשרת ברקע
         loadAllDogProfilesFromFirestore();
     }
 
