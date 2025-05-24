@@ -46,7 +46,7 @@
         <activity
             android:name=".activities.MainActivity"
             android:exported="false" />
-        <receiver android:name=".receiver.ReminderReceiver"
+        <receiver android:name=".obj.ReminderReceiver"
             android:enabled="true"
             android:exported="false" />
     </application>

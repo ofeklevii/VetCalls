@@ -105,7 +105,7 @@ public class HomeFragment extends Fragment implements DogProfileAdapter.OnDogCli
             args.putString("dogId", currentDogProfile.getId());
 
             // העברת כתובת התמונה לפרגמנט העריכה
-            String imageUrl = getBestImageUrl(currentDogProfile.getImageUrl());
+            String imageUrl = getBestImageUrl(currentDogProfile.profileImageUrl);
             if (imageUrl != null && !imageUrl.isEmpty()) {
                 args.putString("imageUrl", imageUrl);
             }
@@ -146,7 +146,7 @@ public class HomeFragment extends Fragment implements DogProfileAdapter.OnDogCli
     private void setupRecyclerView(View view) {
         dogRecyclerView = view.findViewById(R.id.dogRecyclerView);
         dogRecyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
-        adapter = new DogProfileAdapter(requireContext(), dogList, this);
+        adapter = new DogProfileAdapter(requireContext(), new ArrayList<>(), this, 1);
         dogRecyclerView.setAdapter(adapter);
     }
 
@@ -186,20 +186,20 @@ public class HomeFragment extends Fragment implements DogProfileAdapter.OnDogCli
             imageUrl = getBestImageUrl(null);
         }
 
-        return new DogProfile(
-                dogId,
-                bundle.getString("updatedUserName"),
-                bundle.getString("updatedDogAge"),
-                bundle.getString("updatedBio"),
-                imageUrl,
-                bundle.getString("race"),
-                bundle.getString("birthday"),
-                bundle.getString("weight"),
-                bundle.getString("allergies"),
-                bundle.getString("vaccines"),
-                FirebaseAuth.getInstance().getCurrentUser().getUid(),
-                null
-        );
+        DogProfile dog = new DogProfile();
+        dog.dogId = dogId;
+        dog.name = bundle.getString("updatedUserName");
+        dog.age = bundle.getString("updatedDogAge");
+        dog.bio = bundle.getString("updatedBio");
+        dog.profileImageUrl = imageUrl;
+        dog.race = bundle.getString("race");
+        dog.birthday = bundle.getString("birthday");
+        dog.weight = bundle.getString("weight");
+        dog.allergies = bundle.getString("allergies");
+        dog.vaccines = bundle.getString("vaccines");
+        dog.ownerId = FirebaseAuth.getInstance().getCurrentUser().getUid();
+        dog.vetId = null;
+        return dog;
     }
 
     private void updateDogInList(DogProfile newDog) {
@@ -220,18 +220,18 @@ public class HomeFragment extends Fragment implements DogProfileAdapter.OnDogCli
     private void saveDogToPreferences(DogProfile dog) {
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.putString("dogId", dog.getId());
-        editor.putString("name", dog.getName());
-        editor.putString("age", dog.getAge());
-        editor.putString("race", dog.getRace());
-        editor.putString("bio", dog.getBio());
-        editor.putString("birthday", dog.getBirthday());
-        editor.putString("weight", dog.getWeight());
-        editor.putString("allergies", dog.getAllergies());
-        editor.putString("vaccines", dog.getVaccines());
+        editor.putString("name", dog.name);
+        editor.putString("age", dog.age);
+        editor.putString("race", dog.race);
+        editor.putString("bio", dog.bio);
+        editor.putString("birthday", dog.birthday);
+        editor.putString("weight", dog.weight);
+        editor.putString("allergies", dog.allergies);
+        editor.putString("vaccines", dog.vaccines);
 
-        if (dog.getImageUrl() != null && !dog.getImageUrl().isEmpty()) {
-            editor.putString("profileImageUrl", dog.getImageUrl());
-            editor.putString("imageUrl", dog.getImageUrl());
+        if (dog.profileImageUrl != null && !dog.profileImageUrl.isEmpty()) {
+            editor.putString("profileImageUrl", dog.profileImageUrl);
+            editor.putString("imageUrl", dog.profileImageUrl);
         }
 
         editor.apply();
@@ -402,25 +402,25 @@ public class HomeFragment extends Fragment implements DogProfileAdapter.OnDogCli
                         }
                     } else {
                         // Old style - everything is in subcollection
-                        List<DogProfile> newDogList = new ArrayList<>();
-                        for (QueryDocumentSnapshot doc : queryDocumentSnapshots) {
-                            try {
-                                DogProfile dogProfile = createDogProfileFromDocument(doc);
-                                if (dogProfile != null) {
-                                    newDogList.add(dogProfile);
-                                }
-                            } catch (Exception e) {
-                                Log.e(TAG, "Error processing dog document: " + e.getMessage());
+                    List<DogProfile> newDogList = new ArrayList<>();
+                    for (QueryDocumentSnapshot doc : queryDocumentSnapshots) {
+                        try {
+                            DogProfile dogProfile = createDogProfileFromDocument(doc);
+                            if (dogProfile != null) {
+                                newDogList.add(dogProfile);
                             }
+                        } catch (Exception e) {
+                            Log.e(TAG, "Error processing dog document: " + e.getMessage());
                         }
+                    }
 
-                        dogList.clear();
-                        dogList.addAll(newDogList);
+                    dogList.clear();
+                    dogList.addAll(newDogList);
 
                         // שמירת הרשימה המלאה לזיכרון המקומי
-                        saveDogsListToPreferences(newDogList);
+                    saveDogsListToPreferences(newDogList);
 
-                        organizeDogsAndUpdateUI();
+                    organizeDogsAndUpdateUI();
                     }
                 })
                 .addOnFailureListener(e -> {
@@ -455,7 +455,7 @@ public class HomeFragment extends Fragment implements DogProfileAdapter.OnDogCli
                                     markAsCurrentIfNeeded(dogProfile);
                                     newDogList.add(dogProfile);
                                 }
-                            } catch (Exception e) {
+        } catch (Exception e) {
                                 Log.e(TAG, "Error creating dog profile: " + e.getMessage());
                             }
                         }
@@ -507,6 +507,19 @@ public class HomeFragment extends Fragment implements DogProfileAdapter.OnDogCli
         }
 
         ensureCurrentDogIsSet();
+
+        // ודא שהכלב הנוכחי הוא הראשון ברשימה
+        if (currentDogProfile != null && !dogList.isEmpty() && !dogList.get(0).getId().equals(currentDogProfile.getId())) {
+            for (int i = 1; i < dogList.size(); i++) {
+                if (dogList.get(i).getId().equals(currentDogProfile.getId())) {
+                    DogProfile temp = dogList.get(0);
+                    dogList.set(0, dogList.get(i));
+                    dogList.set(i, temp);
+                    break;
+                }
+            }
+        }
+
         List<DogProfile> filteredList = createFilteredList();
 
         if (currentDogProfile != null) {
@@ -542,24 +555,9 @@ public class HomeFragment extends Fragment implements DogProfileAdapter.OnDogCli
     }
 
     private List<DogProfile> createFilteredList() {
-        List<DogProfile> filteredList = new ArrayList<>();
-        Set<String> addedDogIds = new HashSet<>();
-
-        // Add current dog's ID to tracking so it won't be added to the list
-        if (currentDogProfile != null && currentDogProfile.getId() != null) {
-            addedDogIds.add(currentDogProfile.getId());
-        }
-
-        // Add all non-current dogs that aren't already in the list
-        for (DogProfile dog : dogList) {
-            if (dog.getId() == null || addedDogIds.contains(dog.getId())) continue;
-
-            dog.setCurrent(false);
-            filteredList.add(dog);
-            addedDogIds.add(dog.getId());
-        }
-
-        return filteredList;
+        // מציגים את כל הכלבים חוץ מהראשון (הנוכחי)
+        if (dogList.size() <= 1) return new ArrayList<>();
+        return new ArrayList<>(dogList.subList(1, dogList.size()));
     }
 
     // Update dog display in the top section
@@ -570,35 +568,34 @@ public class HomeFragment extends Fragment implements DogProfileAdapter.OnDogCli
         }
 
         // Set name and age
-        userName.setText(dog.getName());
-        dogAge.setText("Age: " + (dog.getAge() != null && !dog.getAge().isEmpty() ? dog.getAge() : "Unknown"));
+        userName.setText(dog.name);
+        dogAge.setText("Age: " + (dog.age != null && !dog.age.isEmpty() ? dog.age : "Unknown"));
 
         // Set bio
         String bioText = createBioText(dog);
         bioTextView.setText(bioText);
 
         // Load image
-        String imageUrl = getBestImageUrl(dog.getImageUrl());
+        String imageUrl = getBestImageUrl(dog.profileImageUrl);
         loadProfileImage(profilePic, imageUrl);
     }
 
     private String createBioText(DogProfile dog) {
         StringBuilder bio = new StringBuilder();
 
-        addIfNotEmpty(bio, "Weight", dog.getWeight(), " kg");
-        addIfNotEmpty(bio, "Race", dog.getRace(), "");
-        addIfNotEmpty(bio, "Allergies", dog.getAllergies(), "");
-        addIfNotEmpty(bio, "Vaccines", dog.getVaccines(), "");
+        addIfNotEmpty(bio, "Weight", dog.weight, " kg");
+        addIfNotEmpty(bio, "Race", dog.race, "");
+        addIfNotEmpty(bio, "Allergies", dog.allergies, "");
+        addIfNotEmpty(bio, "Vaccines", dog.vaccines, "");
 
         String result = bio.toString().trim();
         if (result.isEmpty()) {
-            if (dog.getBio() != null && !dog.getBio().isEmpty()) {
-                return dog.getBio();
+            if (dog.bio != null && !dog.bio.isEmpty()) {
+                return dog.bio;
             } else {
-                return "No information available";
+            return "No information available";
             }
         }
-
         return result;
     }
 
@@ -613,11 +610,17 @@ public class HomeFragment extends Fragment implements DogProfileAdapter.OnDogCli
     private DogProfile createDogProfileFromDocument(DocumentSnapshot document) {
         try {
             String id = document.getId();
+            String name = document.getString("name");
+            String bio = document.getString("bio");
+            String race = document.getString("race");
+            String birthday = document.getString("birthday");
+            String allergies = document.getString("allergies");
+            String vaccines = document.getString("vaccines");
+            String ownerId = document.getString("ownerId");
+            String vetId = document.getString("vetId");
 
-            // Extract age (can be number or string)
+            // Extract age and weight (can be number or string)
             String age = extractStringOrNumber(document, "age", "Unknown");
-
-            // Extract weight (can be number or string)
             String weight = extractStringOrNumber(document, "weight", "");
 
             // Get image URL (try both fields)
@@ -625,24 +628,22 @@ public class HomeFragment extends Fragment implements DogProfileAdapter.OnDogCli
             if (imageUrl == null || imageUrl.isEmpty()) {
                 imageUrl = document.getString("imageUrl");
             }
-
-            // If still no image, check SharedPreferences
             imageUrl = getBestImageUrl(imageUrl);
 
-            return new DogProfile(
-                    id,
-                    document.getString("name"),
-                    age,
-                    document.getString("bio"),
-                    imageUrl,
-                    document.getString("race"),
-                    document.getString("birthday"),
-                    weight,
-                    document.getString("allergies"),
-                    document.getString("vaccines"),
-                    document.getString("ownerId"),
-                    document.getString("vetId")
-            );
+            DogProfile dog = new DogProfile();
+            dog.dogId = id;
+            dog.name = name;
+            dog.age = age;
+            dog.bio = bio;
+            dog.profileImageUrl = imageUrl;
+            dog.race = race;
+            dog.birthday = birthday;
+            dog.weight = weight;
+            dog.allergies = allergies;
+            dog.vaccines = vaccines;
+            dog.ownerId = ownerId;
+            dog.vetId = vetId;
+            return dog;
         } catch (Exception e) {
             Log.e(TAG, "Error creating dog from document: " + e.getMessage());
             return null;
@@ -662,12 +663,19 @@ public class HomeFragment extends Fragment implements DogProfileAdapter.OnDogCli
 
     // Handle dog click in RecyclerView
     @Override
-    public void onDogClick(DogProfile dogProfile) {
-        if (dogProfile == null) return;
+    public void onDogClick(int realIndex) {
+        if (dogList.size() < 2) return;
+        if (realIndex == 0) return; // לא מחליפים עם הראשי
 
-        saveDogToPreferences(dogProfile);
-        currentDogProfile = dogProfile;
-        updateDogDisplay(dogProfile);
+        DogProfile temp = dogList.get(0);
+        dogList.set(0, dogList.get(realIndex));
+        dogList.set(realIndex, temp);
+
+            currentDogProfile = dogList.get(0);
+        currentDogProfile.setCurrent(true);
+        dogList.get(realIndex).setCurrent(false);
+
+            saveDogToPreferences(currentDogProfile);
         organizeDogsAndUpdateUI();
     }
 

@@ -121,7 +121,7 @@ public class LoginActivity extends AppCompatActivity {
             boolean isVet = false; // ברירת מחדל למשתמש רגיל
 
             com.example.vetcalls.obj.User user = new com.example.vetcalls.obj.User(
-                    email, null, null, null, null, null, null, isVet);
+                    email, isVet, userId);
 
             db.collection("Users").document(userId)
                     .set(user)

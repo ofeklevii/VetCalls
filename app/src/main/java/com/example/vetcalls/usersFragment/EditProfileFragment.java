@@ -6,6 +6,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
+import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
@@ -13,8 +14,11 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.Spinner;
 import android.widget.Toast;
 import android.widget.ImageView;
 
@@ -23,20 +27,32 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.DataSource;
+import com.bumptech.glide.load.engine.DiskCacheStrategy;
+import com.bumptech.glide.load.engine.GlideException;
+import com.bumptech.glide.request.RequestListener;
+import com.bumptech.glide.request.target.Target;
 import com.example.vetcalls.R;
+import com.example.vetcalls.obj.DogProfile;
 import com.example.vetcalls.obj.FirestoreUserHelper;
+import com.example.vetcalls.obj.Veterinarian;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.FirebaseFirestoreSettings;
+import com.google.firebase.firestore.SetOptions;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 
 import java.io.ByteArrayOutputStream;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
@@ -54,6 +70,15 @@ public class EditProfileFragment extends Fragment {
     private static final int REQUEST_IMAGE_CAPTURE = 2;
     private String dogId;
     private boolean isNewDog = false;
+    private String downloadUrl = null; // Store download URL for the image
+
+    private Spinner vetSpinner;
+    private List<String> vetNames = new ArrayList<>();
+    private Map<String, String> vetNameToId = new HashMap<>();
+    private String selectedVetId = null;
+    private String selectedVetName = null;
+    private long lastVetChange = 0L; // Per-dog, loaded from Firestore
+    private String originalVetId = null;
 
     @Nullable
     @Override
@@ -76,21 +101,43 @@ public class EditProfileFragment extends Fragment {
         auth = FirebaseAuth.getInstance();
         db = FirebaseFirestore.getInstance();
 
+        vetSpinner = view.findViewById(R.id.vetSpinner);
+        loadVetList();
+
         // Get SharedPreferences
         sharedPreferences = requireActivity().getSharedPreferences("UserProfile", Context.MODE_PRIVATE);
 
-        // Get dog ID from arguments
+        // Immediately clear all fields
+        clearAllFields();
+
+        // Get dog ID and image URL from arguments
         if (getArguments() != null) {
             dogId = getArguments().getString("dogId", "");
+            // קבלת כתובת התמונה מהארגומנטים
+            String imageUrl = getArguments().getString("imageUrl", "");
             Log.d(TAG, "Received dogId from arguments: " + dogId);
+            Log.d(TAG, "Received imageUrl from arguments: " + imageUrl);
+
+            // אם יש כתובת תמונה בארגומנטים, טען אותה מיד
+            if (imageUrl != null && !imageUrl.isEmpty()) {
+                downloadUrl = imageUrl; // שומר את הכתובת
+                loadProfileImage(editProfilePic, imageUrl);
+            }
         } else {
             // Otherwise get from SharedPreferences
             dogId = sharedPreferences.getString("dogId", "");
             Log.d(TAG, "Using dogId from SharedPreferences: " + dogId);
-        }
 
-        // Immediately clear all fields
-        clearAllFields();
+            // ניסיון לקבל כתובת תמונה מהשייירדפרפרנס
+            String savedImageUrl = sharedPreferences.getString("profileImageUrl", null);
+            if (savedImageUrl == null || savedImageUrl.isEmpty()) {
+                savedImageUrl = sharedPreferences.getString("imageUrl", null);
+            }
+            if (savedImageUrl != null && !savedImageUrl.isEmpty()) {
+                downloadUrl = savedImageUrl;
+                loadProfileImage(editProfilePic, savedImageUrl);
+            }
+        }
 
         // Check if this is a new dog
         isNewDog = (dogId == null || dogId.isEmpty());
@@ -109,6 +156,77 @@ public class EditProfileFragment extends Fragment {
         return view;
     }
 
+    private void loadVetList() {
+        db.collection("Veterinarians")
+                .get()
+                .addOnSuccessListener(query -> {
+                    vetNames.clear();
+                    vetNameToId.clear();
+                    for (DocumentSnapshot doc : query.getDocuments()) {
+                        Veterinarian vet = doc.toObject(Veterinarian.class);
+                        String name = vet != null ? vet.fullName : null;
+                        String id = doc.getId();
+                        if (name != null) {
+                            vetNames.add(name);
+                            vetNameToId.put(name, id);
+                        }
+                    }
+                    ArrayAdapter<String> adapter = new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_item, vetNames);
+                    adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                    vetSpinner.setAdapter(adapter);
+
+                    // Restore selection if exists
+                    String savedVetName = sharedPreferences.getString("vetName", null);
+                    if (savedVetName != null && vetNames.contains(savedVetName)) {
+                        vetSpinner.setSelection(vetNames.indexOf(savedVetName));
+                    }
+
+                    vetSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                        @Override
+                        public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                            selectedVetName = vetNames.get(position);
+                            selectedVetId = vetNameToId.get(selectedVetName);
+                        }
+
+                        @Override
+                        public void onNothingSelected(AdapterView<?> parent) {
+                            selectedVetName = null;
+                            selectedVetId = null;
+                        }
+                    });
+                })
+                .addOnFailureListener(e -> Log.e(TAG, "Error loading vet list: " + e.getMessage()));
+    }
+
+    // פונקציה חדשה לטעינת תמונת פרופיל בצורה אחידה
+    private void loadProfileImage(ImageView imageView, String imageUrl) {
+        if (imageUrl != null && !imageUrl.isEmpty()) {
+            Glide.with(requireContext())
+                    .load(imageUrl)
+                    .diskCacheStrategy(DiskCacheStrategy.ALL)
+                    .skipMemoryCache(false)
+                    .placeholder(R.drawable.user_person_profile_avatar_icon_190943)
+                    .error(R.drawable.user_person_profile_avatar_icon_190943)
+                    .circleCrop()
+                    .listener(new RequestListener<Drawable>() {
+                        @Override
+                        public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<Drawable> target, boolean isFirstResource) {
+                            Log.e(TAG, "Failed to load image: " + (e != null ? e.getMessage() : "unknown error"));
+                            return false;
+                        }
+
+                        @Override
+                        public boolean onResourceReady(Drawable resource, Object model, Target<Drawable> target, DataSource dataSource, boolean isFirstResource) {
+                            Log.d(TAG, "Image loaded successfully");
+                            return false;
+                        }
+                    })
+                    .into(imageView);
+        } else {
+            imageView.setImageResource(R.drawable.user_person_profile_avatar_icon_190943);
+        }
+    }
+
     // Clear all fields
     private void clearAllFields() {
         editName.setText("");
@@ -123,60 +241,51 @@ public class EditProfileFragment extends Fragment {
     // Load dog data from Firestore
     private void loadDogDataFromFirestore(String dogId) {
         Log.d(TAG, "Loading dog data for id: " + dogId);
-
         if (dogId == null || dogId.isEmpty()) {
             return;
         }
-
         db.collection("DogProfiles").document(dogId)
                 .get()
                 .addOnSuccessListener(documentSnapshot -> {
                     if (documentSnapshot.exists()) {
                         Log.d(TAG, "Dog document exists");
-
-                        // Check if dog belongs to current user
-                        String ownerId = documentSnapshot.getString("ownerId");
-                        String currentUserId = auth.getCurrentUser() != null ? auth.getCurrentUser().getUid() : null;
-
-                        if (currentUserId != null && ownerId != null && !currentUserId.equals(ownerId)) {
-                            // Dog doesn't belong to current user
-                            Log.w(TAG, "Dog belongs to a different user");
-                            return;
-                        }
-
-                        // Load data
+                        // שליפת שדות ידנית עם המרה בטוחה
                         String name = documentSnapshot.getString("name");
                         String birthday = documentSnapshot.getString("birthday");
-                        String weight = documentSnapshot.getString("weight");
+                        String weight = extractStringOrNumber(documentSnapshot, "weight", "");
                         String race = documentSnapshot.getString("race");
                         String allergies = documentSnapshot.getString("allergies");
                         String vaccines = documentSnapshot.getString("vaccines");
-
-                        // Try to get image URL from two possible fields
+                        String vetId = documentSnapshot.getString("vetId");
+                        String vetName = documentSnapshot.getString("vetName");
+                        String age = extractStringOrNumber(documentSnapshot, "age", "0");
+                        // עדכון שדות במסך
+                        editName.setText(name);
+                        editBirthday.setText(birthday);
+                        editWeight.setText(weight);
+                        editRace.setText(race);
+                        editAllergies.setText(allergies);
+                        editVaccines.setText(vaccines);
+                        // שמור מזהי וטרינר
+                        selectedVetId = vetId;
+                        selectedVetName = vetName;
+                        int position = vetNames.indexOf(vetName);
+                        if (position != -1) {
+                            vetSpinner.setSelection(position);
+                        }
+                        lastVetChange = Long.parseLong(age);
+                        Log.d(TAG, "Loaded lastVetChange from Firestore: " + lastVetChange + " for dog: " + dogId);
                         String imageUrl = documentSnapshot.getString("profileImageUrl");
-                        if (imageUrl == null) {
-                            imageUrl = documentSnapshot.getString("imageUrl");
-                        }
-
-                        // Update fields
-                        editName.setText(name != null ? name : "");
-                        editBirthday.setText(birthday != null ? birthday : "");
-                        editWeight.setText(weight != null ? weight : "");
-                        editRace.setText(race != null ? race : "");
-                        editAllergies.setText(allergies != null ? allergies : "");
-                        editVaccines.setText(vaccines != null ? vaccines : "");
-
-                        // Load profile picture
+                        Log.d(TAG, "Loaded image URL: " + imageUrl);
                         if (imageUrl != null && !imageUrl.isEmpty()) {
-                            Glide.with(requireContext())
-                                    .load(imageUrl)
-                                    .circleCrop()
-                                    .into(editProfilePic);
+                            loadProfileImage(editProfilePic, imageUrl);
+                            downloadUrl = imageUrl;
                         }
-
                         Log.d(TAG, "Dog data loaded successfully");
+                        originalVetId = vetId;
                     } else {
                         Log.d(TAG, "Dog document doesn't exist");
+                        lastVetChange = 0L;
                     }
                 })
                 .addOnFailureListener(e -> {
@@ -185,13 +294,13 @@ public class EditProfileFragment extends Fragment {
                 });
     }
 
-    // Save profile - corrected method
+    // Save profile
     private void saveProfile() {
         Log.d(TAG, "Starting to save profile...");
 
         FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
         if (currentUser == null) {
-            Toast.makeText(getContext(), "User not authenticated", Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), "User not authenticated", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -206,7 +315,7 @@ public class EditProfileFragment extends Fragment {
 
         // Validate input
         if (name.isEmpty() || weight.isEmpty()) {
-            Toast.makeText(getContext(), "Please fill in all required fields (name and weight)", Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), "Please fill in all required fields (name and weight)", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -231,69 +340,83 @@ public class EditProfileFragment extends Fragment {
         // Build bio
         String bio = buildBio(weight, allergies, vaccines);
 
-        // Create data map
-        Map<String, Object> dogData = new HashMap<>();
-        dogData.put("name", name);
-        dogData.put("race", race);
-        dogData.put("age", age);
-        dogData.put("birthday", birthday);
-        dogData.put("weight", weight); // Save as string
-        dogData.put("allergies", allergies);
-        dogData.put("vaccines", vaccines);
-        dogData.put("bio", bio);
-        dogData.put("ownerId", ownerId);
-        dogData.put("lastUpdated", System.currentTimeMillis()); // Add timestamp
+        // בדיקה אם וטרינר נבחר
+        if (selectedVetId == null || selectedVetName == null) {
+            Toast.makeText(requireContext(), "Please select a vet to continue", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // הגבלת שינוי פעם בשבוע
+        long now = System.currentTimeMillis();
+        long oneWeekMillis = 7 * 24 * 60 * 60 * 1000;
+        boolean vetChanged = originalVetId != null && !originalVetId.equals(selectedVetId);
+        if (!isNewDog && vetChanged && lastVetChange != 0 && (now - lastVetChange) < oneWeekMillis) {
+            Log.d(TAG, "Vet change rejected - Less than a week since last change");
+            Toast.makeText(requireContext(), "Vet can only be changed once a week", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        Log.d(TAG, "Vet change allowed - Proceeding with save");
+
+        // יצירת אובייקט DogProfile
+        DogProfile dogProfile = new DogProfile();
+        dogProfile.dogId = dogId;
+        dogProfile.name = name;
+        dogProfile.vetId = selectedVetId;
+        dogProfile.vetName = selectedVetName;
+        dogProfile.weight = weight;
+        dogProfile.allergies = allergies;
+        dogProfile.vaccines = vaccines;
+        dogProfile.bio = bio;
+        dogProfile.ownerId = ownerId;
+        dogProfile.lastUpdated = System.currentTimeMillis();
+        dogProfile.lastVetChange = now;
+        if (downloadUrl != null && !downloadUrl.isEmpty()) {
+            dogProfile.profileImageUrl = downloadUrl;
+        }
 
         Log.d(TAG, "Saving profile with dogId: " + dogId);
 
-        // Always use set instead of update
-        db.collection("DogProfiles").document(dogId)
-                .set(dogData)
-                .addOnSuccessListener(aVoid -> {
-                    Log.d(TAG, "Dog profile saved successfully to DogProfiles/" + dogId);
+        // עדכון גלובלי בכל המקומות
+        com.example.vetcalls.obj.FirestoreUserHelper.updateDogProfileEverywhere(dogProfile);
 
-                    // If this is a new dog, add it to user's dog collection
-                    if (isNewDog) {
-                        // Change - use fixed ID instead of auto ID
-                        db.collection("Users").document(ownerId)
-                                .collection("Dogs").document(dogId)  // Use dog's own ID
-                                .set(new HashMap<String, Object>() {{
-                                    put("dogId", dogId);
-                                    put("name", name);
-                                    put("timestamp", System.currentTimeMillis());
-                                }})
-                                .addOnSuccessListener(unused -> {
-                                    Log.d(TAG, "Dog reference added to user's collection with explicit ID: " + dogId);
-                                })
-                                .addOnFailureListener(e -> {
-                                    Log.e(TAG, "Error adding dog reference: " + e.getMessage());
-                                });
-                    }
+        // שמירה גם בתת-קולקשן Dogs של המשתמש
+        DogProfile dogBasicData = new DogProfile();
+        dogBasicData.dogId = dogId;
+        dogBasicData.name = name;
+        dogBasicData.profileImageUrl = downloadUrl != null ? downloadUrl : "";
+        dogBasicData.vetId = selectedVetId;
+        dogBasicData.age = ageStr;
+        db.collection("Users").document(ownerId)
+            .collection("Dogs").document(dogId)
+            .set(dogBasicData)
+            .addOnSuccessListener(aVoid -> Log.d(TAG, "Dog basic data saved to user's Dogs subcollection"))
+            .addOnFailureListener(e -> Log.e(TAG, "Error saving dog to user's Dogs subcollection: " + e.getMessage()));
 
-                    // Handle image if selected
-                    if (selectedImageUri != null) {
-                        uploadImageToFirebase(selectedImageUri);
-                    } else {
-                        // Continue process even without new image
-                        finishSaveProcess(name, ageStr, bio, race, birthday, weight, allergies, vaccines);
-                    }
-                })
-                .addOnFailureListener(e -> {
-                    Log.e(TAG, "Error saving dog profile: " + e.getMessage());
-                    Toast.makeText(getContext(), "Error saving profile: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                });
+        // Handle image if selected
+        if (selectedImageUri != null) {
+            uploadImageToFirebase(selectedImageUri);
+        } else {
+            // Continue process even without new image
+            finishSaveProcess(name, ageStr, bio, race, birthday, weight, allergies, vaccines);
+        }
     }
 
     // Build bio from data
     private String buildBio(String weight, String allergies, String vaccines) {
         StringBuilder bioBuilder = new StringBuilder();
         if (weight != null && !weight.isEmpty()) {
-            bioBuilder.append("Weight: ").append(weight).append(" kg\n");
+            bioBuilder.append("Weight: ").append(weight).append(" kg");
         }
         if (allergies != null && !allergies.isEmpty()) {
-            bioBuilder.append("Allergies: ").append(allergies).append("\n");
+            if (bioBuilder.length() > 0) {
+                bioBuilder.append("\n");
+            }
+            bioBuilder.append("Allergies: ").append(allergies);
         }
         if (vaccines != null && !vaccines.isEmpty()) {
+            if (bioBuilder.length() > 0) {
+                bioBuilder.append("\n");
+            }
             bioBuilder.append("Vaccines: ").append(vaccines);
         }
         return bioBuilder.toString().trim();
@@ -313,8 +436,17 @@ public class EditProfileFragment extends Fragment {
         editor.putString("allergies", allergies);
         editor.putString("vaccines", vaccines);
         editor.putString("age", age);
+        editor.putString("vetId", selectedVetId);
+        editor.putString("vetName", selectedVetName);
         editor.putString("bio", bio);
         editor.putString("dogId", dogId);
+
+        // Save image URL in both fields for maximum compatibility
+        if (downloadUrl != null && !downloadUrl.isEmpty()) {
+            editor.putString("profileImageUrl", downloadUrl);
+            Log.d(TAG, "Saving image URL to SharedPreferences: " + downloadUrl);
+        }
+
         editor.apply();
 
         Log.d(TAG, "Saved to SharedPreferences, dogId: " + dogId);
@@ -330,17 +462,24 @@ public class EditProfileFragment extends Fragment {
         result.putString("allergies", allergies);
         result.putString("vaccines", vaccines);
         result.putString("dogId", dogId);
+        result.putString("vetId", selectedVetId);
+        result.putString("vetName", selectedVetName);
         result.putBoolean("isNewDog", isNewDog); // Important - pass info if this is a new dog
 
-        // If there's a selected image URI, send it too
-        if (selectedImageUri != null) {
+        // If we have a valid image URL, send it
+        if (downloadUrl != null && !downloadUrl.isEmpty()) {
+            result.putString("updatedImageUri", downloadUrl);
+            Log.d(TAG, "Sending image URL in result: " + downloadUrl);
+        } else if (selectedImageUri != null) {
+            // If no download URL but we have selected image URI
             result.putString("updatedImageUri", selectedImageUri.toString());
+            Log.d(TAG, "Sending selected image URI in result: " + selectedImageUri);
         }
 
         Log.d(TAG, "Setting fragment result with dogId: " + dogId);
         getParentFragmentManager().setFragmentResult("editProfileKey", result);
 
-        Toast.makeText(getContext(), "Profile saved successfully", Toast.LENGTH_SHORT).show();
+        Toast.makeText(requireContext(), "Profile saved successfully", Toast.LENGTH_SHORT).show();
         Log.d(TAG, "Finishing profile save and returning to HomeFragment");
 
         // Short wait before returning to previous screen to allow Firebase to update
@@ -418,12 +557,9 @@ public class EditProfileFragment extends Fragment {
             }
 
             if (selectedImageUri != null) {
-                // Display selected image
-                Glide.with(requireContext())
-                        .load(selectedImageUri)
-                        .circleCrop()
-                        .into(editProfilePic);
-                Toast.makeText(getContext(), "Image selected", Toast.LENGTH_SHORT).show();
+                // שימוש בפונקציה החדשה לטעינת תמונה
+                loadProfileImage(editProfilePic, selectedImageUri.toString());
+                Toast.makeText(requireContext(), "Image selected", Toast.LENGTH_SHORT).show();
             }
         }
     }
@@ -436,7 +572,7 @@ public class EditProfileFragment extends Fragment {
         return path != null ? Uri.parse(path) : null;
     }
 
-    // Upload image to Firebase Storage
+    // Upload image to Firebase Storage - שיפור הטיפול בתמונה
     private void uploadImageToFirebase(Uri imageUri) {
         if (imageUri == null) {
             // If no image, continue the process
@@ -453,23 +589,35 @@ public class EditProfileFragment extends Fragment {
             return;
         }
 
-        Log.d(TAG, "Uploading image to Firebase Storage");
+        Log.d(TAG, "Uploading image to Firebase Storage, URI: " + imageUri);
 
+        // Create a more specific reference with folder structure
         StorageReference storageRef = FirebaseStorage.getInstance()
-                .getReference("dog_profile_images/" + dogId + ".jpg");
+                .getReference()
+                .child("dog_profile_images")
+                .child(dogId + ".jpg");
+
+        Log.d(TAG, "Storage reference path: " + storageRef.getPath());
+
+        // Show loading dialog
+        AlertDialog loadingDialog = new AlertDialog.Builder(requireContext())
+                .setMessage("Uploading image...")
+                .setCancelable(false)
+                .create();
+        loadingDialog.show();
 
         storageRef.putFile(imageUri)
                 .addOnSuccessListener(taskSnapshot -> {
                     Log.d(TAG, "Image uploaded successfully");
 
                     storageRef.getDownloadUrl().addOnSuccessListener(uri -> {
-                        String downloadUrl = uri.toString();
-                        Log.d(TAG, "Image download URL: " + downloadUrl);
+                        // Store the download URL
+                        downloadUrl = uri.toString();
+                        Log.d(TAG, "Got download URL: " + downloadUrl);
 
                         // Update both image fields in Firestore for maximum compatibility
                         Map<String, Object> updates = new HashMap<>();
                         updates.put("profileImageUrl", downloadUrl);
-                        updates.put("imageUrl", downloadUrl);  // Also this field in case other code uses it
 
                         db.collection("DogProfiles")
                                 .document(dogId)
@@ -477,10 +625,14 @@ public class EditProfileFragment extends Fragment {
                                 .addOnSuccessListener(aVoid -> {
                                     Log.d(TAG, "Image URLs updated in Firestore");
 
-                                    // Local save
-                                    sharedPreferences.edit()
-                                            .putString("profileImageUrl", downloadUrl)
-                                            .apply();
+                                    if (loadingDialog.isShowing()) {
+                                        loadingDialog.dismiss();
+                                    }
+
+                                    // Save in SharedPreferences both fields
+                                    SharedPreferences.Editor editor = sharedPreferences.edit();
+                                    editor.putString("profileImageUrl", downloadUrl);
+                                    editor.apply();
 
                                     // Continue save process after updating image
                                     finishSaveProcess(editName.getText().toString().trim(),
@@ -496,6 +648,11 @@ public class EditProfileFragment extends Fragment {
                                 })
                                 .addOnFailureListener(e -> {
                                     Log.e(TAG, "Error updating image URLs in Firestore: " + e.getMessage());
+
+                                    if (loadingDialog.isShowing()) {
+                                        loadingDialog.dismiss();
+                                    }
+
                                     // Continue process despite error
                                     finishSaveProcess(editName.getText().toString().trim(),
                                             calculateDogAge(editBirthday.getText().toString().trim()),
@@ -508,11 +665,35 @@ public class EditProfileFragment extends Fragment {
                                             editAllergies.getText().toString().trim(),
                                             editVaccines.getText().toString().trim());
                                 });
+                    }).addOnFailureListener(e -> {
+                        Log.e(TAG, "Failed to get download URL: " + e.getMessage());
+
+                        if (loadingDialog.isShowing()) {
+                            loadingDialog.dismiss();
+                        }
+
+                        // Continue process despite error
+                        finishSaveProcess(editName.getText().toString().trim(),
+                                calculateDogAge(editBirthday.getText().toString().trim()),
+                                buildBio(editWeight.getText().toString().trim(),
+                                        editAllergies.getText().toString().trim(),
+                                        editVaccines.getText().toString().trim()),
+                                editRace.getText().toString().trim(),
+                                editBirthday.getText().toString().trim(),
+                                editWeight.getText().toString().trim(),
+                                editAllergies.getText().toString().trim(),
+                                editVaccines.getText().toString().trim());
                     });
                 })
                 .addOnFailureListener(e -> {
                     Log.e(TAG, "Error uploading image: " + e.getMessage());
-                    Toast.makeText(getContext(), "Failed to upload image: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+
+                    if (loadingDialog.isShowing()) {
+                        loadingDialog.dismiss();
+                    }
+
+                    Toast.makeText(requireContext(), "Failed to upload image: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+
                     // Continue process despite error
                     finishSaveProcess(editName.getText().toString().trim(),
                             calculateDogAge(editBirthday.getText().toString().trim()),
@@ -524,6 +705,22 @@ public class EditProfileFragment extends Fragment {
                             editWeight.getText().toString().trim(),
                             editAllergies.getText().toString().trim(),
                             editVaccines.getText().toString().trim());
+                })
+                .addOnProgressListener(snapshot -> {
+                    // Calculate progress percentage
+                    double progress = (100.0 * snapshot.getBytesTransferred()) / snapshot.getTotalByteCount();
+                    Log.d(TAG, "Upload progress: " + progress + "%");
                 });
+    }
+
+    private String extractStringOrNumber(DocumentSnapshot document, String field, String defaultValue) {
+        Object obj = document.get(field);
+        if (obj instanceof String) {
+            return (String) obj;
+        } else if (obj instanceof Number) {
+            return String.valueOf(obj);
+        } else {
+            return defaultValue;
+        }
     }
 }
