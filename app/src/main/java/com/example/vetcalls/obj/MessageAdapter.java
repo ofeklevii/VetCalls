@@ -15,7 +15,7 @@ import com.example.vetcalls.R;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
-public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageViewHolder> {
+public class MessageAdapter extends RecyclerView.Adapter<MessageViewHolder> {
 
     private Context context;
     private ArrayList<Message> messageList;
@@ -140,27 +140,6 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
     @Override
     public int getItemCount() {
         return messageList.size();
-    }
-
-    static class MessageViewHolder extends RecyclerView.ViewHolder {
-        LinearLayout messageContainer;
-        LinearLayout messageBubble;
-        TextView textMessage;
-        ImageView imageMessage;
-        VideoView videoMessage;
-        TextView messageTime;
-        TextView dateHeader;
-
-        public MessageViewHolder(@NonNull View itemView) {
-            super(itemView);
-            messageContainer = itemView.findViewById(R.id.messageContainer);
-            messageBubble = itemView.findViewById(R.id.messageBubble);
-            textMessage = itemView.findViewById(R.id.textMessage);
-            imageMessage = itemView.findViewById(R.id.imageMessage);
-            videoMessage = itemView.findViewById(R.id.videoMessage);
-            messageTime = itemView.findViewById(R.id.messageTime);
-            dateHeader = itemView.findViewById(R.id.dateHeader);
-        }
     }
 
     private void showFullScreenMedia(String url, String type) {

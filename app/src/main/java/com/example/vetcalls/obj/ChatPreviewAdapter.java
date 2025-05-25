@@ -12,7 +12,7 @@ import com.example.vetcalls.R;
 
 import java.util.*;
 
-public class ChatPreviewAdapter extends RecyclerView.Adapter<ChatPreviewAdapter.ChatViewHolder> {
+public class ChatPreviewAdapter extends RecyclerView.Adapter<ChatViewHolder> {
 
     public interface OnChatClickListener {
         void onChatClick(ChatPreview chat);
@@ -55,16 +55,5 @@ public class ChatPreviewAdapter extends RecyclerView.Adapter<ChatPreviewAdapter.
     @Override
     public int getItemCount() {
         return chatList.size();
-    }
-
-    static class ChatViewHolder extends RecyclerView.ViewHolder {
-        ImageView image;
-        TextView name;
-
-        public ChatViewHolder(@NonNull View itemView) {
-            super(itemView);
-            image = itemView.findViewById(R.id.imageProfile);
-            name = itemView.findViewById(R.id.textName);
-        }
     }
 }

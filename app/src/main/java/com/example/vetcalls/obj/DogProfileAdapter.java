@@ -11,6 +11,7 @@ import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+
 import androidx.annotation.NonNull;
 import androidx.fragment.app.FragmentActivity;
 import androidx.recyclerview.widget.RecyclerView;
@@ -20,83 +21,82 @@ import com.bumptech.glide.Glide;
 import java.util.ArrayList;
 import java.util.List;
 
-public class DogProfileAdapter extends RecyclerView.Adapter<DogProfileAdapter.DogViewHolder> {
+import com.example.vetcalls.obj.DogProfileViewHolder;
+
+public class DogProfileAdapter extends RecyclerView.Adapter<DogProfileViewHolder> {
 
     private static final String TAG = "DogProfileAdapter";
     private List<DogProfile> dogList;
     private Context context;
     private DogProfile currentDog; // פרופיל הכלב הנוכחי המוצג למעלה
     private OnDogClickListener onDogClickListener; // ממשק מאזין לחיצות
+    private int baseIndex = 0;
 
     // ממשק לטיפול באירועי לחיצה על פרופיל כלב
     public interface OnDogClickListener {
-        void onDogClick(DogProfile dog);
+        void onDogClick(int realIndex);
     }
 
-    public DogProfileAdapter(Context context, List<DogProfile> dogList) {
-        this.context = context;
-        this.dogList = dogList != null ? dogList : new ArrayList<>();
-    }
-
-    public DogProfileAdapter(Context context, List<DogProfile> dogList, OnDogClickListener listener) {
+    public DogProfileAdapter(Context context, List<DogProfile> dogList, OnDogClickListener listener, int baseIndex) {
         this.context = context;
         this.dogList = dogList != null ? dogList : new ArrayList<>();
         this.onDogClickListener = listener;
+        this.baseIndex = baseIndex;
     }
 
     // הגדרת הכלב הנוכחי המוצג למעלה - כעת רק מסמן את הכלב אבל לא מוציא אותו מהרשימה
     public void setCurrentDog(DogProfile dog) {
-        this.currentDog = dog;
-        Log.d(TAG, "Setting current dog: " + (dog != null ? dog.getName() : "null"));
-
-        // סימון הכלב הנוכחי בתוך הרשימה - לא מסיר אותו מהרשימה
-        for (DogProfile profile : dogList) {
-            if (profile.getId() != null && dog != null && dog.getId() != null && profile.getId().equals(dog.getId())) {
-                profile.setCurrent(true);
-                Log.d(TAG, "Marked dog as current: " + profile.getName());
-            } else {
-                profile.setCurrent(false);
+        if (currentDog != null) {
+            currentDog.isCurrent = false;
+            int oldPosition = dogList.indexOf(currentDog);
+            if (oldPosition != -1) {
+                notifyItemChanged(oldPosition);
             }
         }
-        notifyDataSetChanged();
+
+        currentDog = dog;
+        if (currentDog != null) {
+            currentDog.isCurrent = true;
+            int newPosition = dogList.indexOf(currentDog);
+            if (newPosition != -1) {
+                notifyItemChanged(newPosition);
+            }
+        }
     }
 
     @NonNull
     @Override
-    public DogViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+    public DogProfileViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(context).inflate(R.layout.dog_item, parent, false);
-        return new DogViewHolder(view);
+        return new DogProfileViewHolder(view);
     }
 
     @Override
-    public void onBindViewHolder(@NonNull DogViewHolder holder, int position) {
+    public void onBindViewHolder(@NonNull DogProfileViewHolder holder, int position) {
         DogProfile dog = dogList.get(position);
-        Log.d(TAG, "Binding dog: " + dog.getName() + ", id: " + dog.getId() + ", isCurrent: " + dog.isCurrent());
+        Log.d(TAG, "Binding dog: " + dog.name + ", id: " + dog.dogId + ", isCurrent: " + dog.isCurrent);
 
-        holder.dogName.setText(dog.getName());
+        // הצגת שם הכלב
+        holder.dogName.setText(dog.name);
 
-        // בטוח יותר - טיפול בכל המקרים של ה-age
+        // הצגת גיל הכלב
         String ageText = "Age: ";
-        if (dog.getAge() != null) {
-            ageText += dog.getAge();
+        if (dog.age != null) {
+            ageText += dog.age;
         } else {
             ageText += "Unknown";
         }
         holder.dogAge.setText(ageText);
 
-        // שינוי בהצגת הביו - נציג רק את הגזע בכרטיס
-        StringBuilder shortBio = new StringBuilder();
-        if (dog.getRace() != null && !dog.getRace().isEmpty()) {
-            shortBio.append("Race: ").append(dog.getRace());
-        }
+        // הסתרת הביו ברשימה (רק שם ותמונה וגיל)
         if (holder.dogBio != null) {
-            holder.dogBio.setText(shortBio.toString());
+            holder.dogBio.setVisibility(View.GONE);
         }
 
         // טעינת תמונה
-        if (dog.getImageUrl() != null && !dog.getImageUrl().isEmpty()) {
+        if (dog.profileImageUrl != null && !dog.profileImageUrl.isEmpty()) {
             Glide.with(context)
-                    .load(dog.getImageUrl())
+                    .load(dog.profileImageUrl)
                     .placeholder(R.drawable.user_person_profile_avatar_icon_190943)
                     .circleCrop()
                     .into(holder.dogImage);
@@ -104,22 +104,20 @@ public class DogProfileAdapter extends RecyclerView.Adapter<DogProfileAdapter.Do
             holder.dogImage.setImageResource(R.drawable.user_person_profile_avatar_icon_190943);
         }
 
-        // הוספת הדגשה לכלב הנוכחי המוצג (אופציונלי)
-        if (dog.isCurrent()) {
+        // הוספת הדגשה לכלב הנוכחי המוצג
+        if (dog.isCurrent) {
             holder.itemView.setBackgroundResource(R.drawable.selected_dog_background);
-            Log.d(TAG, "Applying background to: " + dog.getName());
+            Log.d(TAG, "Applying background to: " + dog.name);
         } else {
             holder.itemView.setBackgroundResource(android.R.color.transparent);
         }
 
-        // הוספת מאזין לחיצה על כרטיס - שני מסלולים אפשריים
+        // הוספת מאזין לחיצה על כרטיס
         holder.itemView.setOnClickListener(v -> {
-            Log.d(TAG, "Dog card clicked: " + dog.getName());
-            // אם הממשק הוגדר, נשתמש בו
+            Log.d(TAG, "Dog card clicked: " + dog.name);
             if (onDogClickListener != null) {
-                onDogClickListener.onDogClick(dog);
+                onDogClickListener.onDogClick(position + baseIndex);
             } else {
-                // אחרת, נשתמש בפונקציה המקורית
                 updateProfile(dog);
             }
         });
@@ -131,44 +129,49 @@ public class DogProfileAdapter extends RecyclerView.Adapter<DogProfileAdapter.Do
         SharedPreferences.Editor editor = sharedPreferences.edit();
 
         // שמירת פרטי הכלב המוצג בפרופיל העליון
-        editor.putString("name", dog.getName());
-        // טיפול בטוח יותר ב-age
-        editor.putString("age", dog.getAge() != null ? dog.getAge() : "");
-        editor.putString("race", dog.getRace());
-        editor.putString("birthday", dog.getBirthday());
+        editor.putString("name", dog.name);
+        editor.putString("age", dog.age != null ? dog.age : "");
+        editor.putString("race", dog.race);
+        editor.putString("birthday", dog.birthday);
+        editor.putString("weight", dog.weight);
+        editor.putString("allergies", dog.allergies);
+        editor.putString("vaccines", dog.vaccines);
 
         // שמירת המזהה של הכלב הנוכחי המוצג (חשוב לעריכה)
-        if (dog.getId() != null) {
-            editor.putString("dogId", dog.getId());
+        if (dog.dogId != null) {
+            editor.putString("dogId", dog.dogId);
         } else {
-            editor.putString("currentDogName", dog.getName());
+            editor.putString("currentDogName", dog.name);
         }
 
-        // בניית הביו
+        // בניית הביו המורחב שיוצג למעלה
         StringBuilder bioBuilder = new StringBuilder();
-        if (dog.getRace() != null && !dog.getRace().isEmpty()) {
-            bioBuilder.append("Race: ").append(dog.getRace()).append("\n");
-        }
-        if (dog.getBirthday() != null && !dog.getBirthday().isEmpty()) {
-            bioBuilder.append("Birthday: ").append(dog.getBirthday()).append("\n");
+
+        // הוספת משקל
+        if (dog.weight != null && !dog.weight.isEmpty()) {
+            bioBuilder.append("Weight: ").append(dog.weight).append(" kg\n");
         }
 
-        // הוספת פרטים מהביו המקורי
-        String originalBio = dog.getBio();
-        if (originalBio != null && !originalBio.isEmpty()) {
-            String[] lines = originalBio.split("\n");
-            for (String line : lines) {
-                if (line.startsWith("Weight:") || line.startsWith("Allergies:") || line.startsWith("Vaccines:")) {
-                    bioBuilder.append(line).append("\n");
-                }
-            }
+        // הוספת גזע
+        if (dog.race != null && !dog.race.isEmpty()) {
+            bioBuilder.append("Race: ").append(dog.race).append("\n");
+        }
+
+        // הוספת אלרגיות
+        if (dog.allergies != null && !dog.allergies.isEmpty()) {
+            bioBuilder.append("Allergies: ").append(dog.allergies).append("\n");
+        }
+
+        // הוספת חיסונים
+        if (dog.vaccines != null && !dog.vaccines.isEmpty()) {
+            bioBuilder.append("Vaccines: ").append(dog.vaccines);
         }
 
         editor.putString("bio", bioBuilder.toString().trim());
 
         // שמירת תמונה
-        if (dog.getImageUrl() != null && !dog.getImageUrl().isEmpty()) {
-            editor.putString("profileImageUrl", dog.getImageUrl());
+        if (dog.profileImageUrl != null && !dog.profileImageUrl.isEmpty()) {
+            editor.putString("profileImageUrl", dog.profileImageUrl);
         }
 
         editor.apply();
@@ -183,14 +186,14 @@ public class DogProfileAdapter extends RecyclerView.Adapter<DogProfileAdapter.Do
             TextView bioTextView = activity.findViewById(R.id.bioText);
             ImageView profilePic = activity.findViewById(R.id.profilePic);
 
-            if (userName != null) userName.setText(dog.getName());
-            if (dogAge != null) dogAge.setText("Age: " + (dog.getAge() != null ? dog.getAge() : ""));
+            if (userName != null) userName.setText(dog.name);
+            if (dogAge != null) dogAge.setText("Age: " + (dog.age != null ? dog.age : ""));
             if (bioTextView != null) bioTextView.setText(bioBuilder.toString().trim());
 
-            if (profilePic != null && dog.getImageUrl() != null && !dog.getImageUrl().isEmpty()) {
+            if (profilePic != null && dog.profileImageUrl != null && !dog.profileImageUrl.isEmpty()) {
                 try {
                     Glide.with(context)
-                            .load(dog.getImageUrl())
+                            .load(dog.profileImageUrl)
                             .circleCrop()
                             .into(profilePic);
                 } catch (Exception e) {
@@ -204,35 +207,14 @@ public class DogProfileAdapter extends RecyclerView.Adapter<DogProfileAdapter.Do
     }
 
     // עדכון רשימת הכלבים
-    public void updateDogList(List<DogProfile> newDogList) {
-        this.dogList = newDogList != null ? newDogList : new ArrayList<>();
+    public void updateDogList(List<DogProfile> newList) {
+        dogList.clear();
+        dogList.addAll(newList);
         notifyDataSetChanged();
     }
 
     @Override
     public int getItemCount() {
         return dogList.size();
-    }
-
-    public static class DogViewHolder extends RecyclerView.ViewHolder {
-        ImageView dogImage;
-        TextView dogName, dogAge, dogBio;
-        private static final String VIEW_HOLDER_TAG = "DogViewHolder";
-
-        public DogViewHolder(@NonNull View itemView) {
-            super(itemView);
-            // שינוי כאן - בדיקה אם ה-ID קיים לפני מציאת ה-View
-            dogImage = itemView.findViewById(R.id.dogImage); // וודא שזה ה-ID הנכון בקובץ dog_item.xml
-            dogName = itemView.findViewById(R.id.dogName);   // וודא שזה ה-ID הנכון בקובץ dog_item.xml
-            dogAge = itemView.findViewById(R.id.dogAge);     // וודא שזה ה-ID הנכון בקובץ dog_item.xml
-            dogBio = itemView.findViewById(R.id.dogBio);     // וודא שזה ה-ID הנכון בקובץ dog_item.xml
-
-            // לוג לבדיקה - עם TAG ייעודי למחלקה הפנימית
-            Log.d(VIEW_HOLDER_TAG, "DogViewHolder initialized. Views found: " +
-                    "dogImage=" + (dogImage != null) +
-                    ", dogName=" + (dogName != null) +
-                    ", dogAge=" + (dogAge != null) +
-                    ", dogBio=" + (dogBio != null));
-        }
     }
 }

@@ -13,9 +13,12 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.Spinner;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
@@ -29,6 +32,7 @@ import com.example.vetcalls.obj.DogProfile;
 import com.example.vetcalls.obj.FirestoreUserHelper;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
@@ -36,9 +40,13 @@ import com.google.firebase.storage.StorageReference;
 import java.io.ByteArrayOutputStream;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 
 public class AddDogProfileFragment extends Fragment {
@@ -56,7 +64,14 @@ public class AddDogProfileFragment extends Fragment {
     private FirebaseFirestore db;
     private SharedPreferences sharedPreferences;
     private String dogId;
-    private String vetId;
+    private String selectedVetId = null;
+    private String selectedVetName = null;
+
+    private Spinner vetSpinner;
+    private List<String> vetNames = new ArrayList<>();
+    private Map<String, String> vetNameToId = new HashMap<>();
+
+    private long lastVetChange = 0L; // Per-dog, for new dog
 
     public AddDogProfileFragment() {}
 
@@ -73,27 +88,61 @@ public class AddDogProfileFragment extends Fragment {
         editVaccines = view.findViewById(R.id.editVaccines);
         changeProfilePicButton = view.findViewById(R.id.changeProfilePicButton);
         saveButton = view.findViewById(R.id.saveButton);
-        cancelButton = view.findViewById(R.id.cancelButton); // הוספת התייחסות לכפתור ביטול
+        cancelButton = view.findViewById(R.id.cancelButton);
+        vetSpinner = view.findViewById(R.id.vetSpinner);
 
         auth = FirebaseAuth.getInstance();
         db = FirebaseFirestore.getInstance();
         sharedPreferences = requireActivity().getSharedPreferences("UserProfile", Context.MODE_PRIVATE);
 
-        vetId = sharedPreferences.getString("vetId", ""); // Optional pre-assignment
+        loadVetList();
 
         changeProfilePicButton.setOnClickListener(v -> showImagePickerDialog());
         saveButton.setOnClickListener(v -> saveDogProfile());
-
-        // הוספת מאזין אירועים לכפתור הביטול
         cancelButton.setOnClickListener(v -> navigateBack());
 
         return view;
     }
 
+    private void loadVetList() {
+        db.collection("Veterinarians")
+                .get()
+                .addOnSuccessListener(query -> {
+                    vetNames.clear();
+                    vetNameToId.clear();
+                    for (DocumentSnapshot doc : query.getDocuments()) {
+                        String name = doc.getString("fullName");
+                        String id = doc.getId();
+                        if (name != null) {
+                            vetNames.add(name);
+                            vetNameToId.put(name, id);
+                        }
+                    }
+                    ArrayAdapter<String> adapter = new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_item, vetNames);
+                    adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                    vetSpinner.setAdapter(adapter);
+
+                    vetSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                        @Override
+                        public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                            selectedVetName = vetNames.get(position);
+                            selectedVetId = vetNameToId.get(selectedVetName);
+                        }
+
+                        @Override
+                        public void onNothingSelected(AdapterView<?> parent) {
+                            selectedVetName = null;
+                            selectedVetId = null;
+                        }
+                    });
+                })
+                .addOnFailureListener(e -> Log.e(TAG, "Error loading vet list: " + e.getMessage()));
+    }
+
     private void saveDogProfile() {
         FirebaseUser currentUser = auth.getCurrentUser();
         if (currentUser == null) {
-            Toast.makeText(getContext(), "User not authenticated", Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), "User not authenticated", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -105,50 +154,78 @@ public class AddDogProfileFragment extends Fragment {
         String vaccines = editVaccines.getText().toString().trim();
 
         if (name.isEmpty() || race.isEmpty() || birthday.isEmpty() || weight.isEmpty()) {
-            Toast.makeText(getContext(), "Please fill all required fields", Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), "Please fill all required fields", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Check if vet is selected
+        if (selectedVetId == null || selectedVetName == null) {
+            Toast.makeText(requireContext(), "Please select a vet to continue", Toast.LENGTH_SHORT).show();
             return;
         }
 
         String age = calculateDogAge(birthday);
-        // יצירת מזהה ייחודי לכלב
         dogId = UUID.randomUUID().toString();
         String bio = buildBio(race, weight, allergies, vaccines);
         String ownerId = currentUser.getUid();
+        long now = System.currentTimeMillis();
+        lastVetChange = now;
 
         Log.d(TAG, "Saving new dog profile: " + name + ", ID: " + dogId + ", Owner: " + ownerId);
 
         // שליחת המידע לפיירסטור
         FirestoreUserHelper.addDogProfile(
-                dogId, name, race, Integer.parseInt(age), birthday, weight, allergies, vaccines,
-                bio, ownerId, vetId, null
+                dogId, name, race, age, birthday, weight, allergies, vaccines,
+                bio, ownerId, selectedVetId, selectedVetName, now
         );
 
+        // שמירת lastVetChange ב-Firestore
+        Map<String, Object> dogData = new HashMap<>();
+        dogData.put("lastVetChange", now);
+        db.collection("DogProfiles").document(dogId)
+                .update(dogData)
+                .addOnSuccessListener(aVoid -> {
+                    Log.d(TAG, "lastVetChange saved successfully for new dog: " + dogId);
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Error saving lastVetChange: " + e.getMessage());
+                });
+
         if (selectedImageUri != null) {
-            String dogId = "הערך של ה-dogId כאן"; // שלוף את ה-dogId שלך כאן (לפי איך שהוא מאוחסן או נשלח)
             uploadImageToFirebase(selectedImageUri, ownerId, dogId);
         }
 
-
         // יצירת אובייקט DogProfile
-        DogProfile newDogProfile = new DogProfile(
-                dogId, name, age, bio,
-                selectedImageUri != null ? selectedImageUri.toString() : "",
-                race, birthday, weight, allergies, vaccines, ownerId, vetId
-        );
+        DogProfile newDogProfile = new DogProfile();
+        newDogProfile.dogId = dogId;
+        newDogProfile.name = name;
+        newDogProfile.age = age;
+        newDogProfile.bio = bio;
+        newDogProfile.profileImageUrl = selectedImageUri != null ? selectedImageUri.toString() : "";
+        newDogProfile.race = race;
+        newDogProfile.birthday = birthday;
+        newDogProfile.weight = weight;
+        newDogProfile.allergies = allergies;
+        newDogProfile.vaccines = vaccines;
+        newDogProfile.ownerId = ownerId;
+        newDogProfile.vetId = selectedVetId;
+        newDogProfile.vetName = selectedVetName;
+        newDogProfile.lastVetChange = now;
+        newDogProfile.lastUpdated = now;
 
         // שליחת המידע ל-HomeFragment כדי לעדכן את הפרופיל העליון
         Bundle result = new Bundle();
         result.putString("updatedBio", bio);
         result.putString("updatedDogAge", age);
         result.putString("updatedUserName", name);
-
-        // שמירת שאר הפרטים
         result.putString("race", race);
         result.putString("birthday", birthday);
         result.putString("weight", weight);
         result.putString("allergies", allergies);
         result.putString("vaccines", vaccines);
         result.putString("dogId", dogId);
+        result.putString("vetId", selectedVetId);
+        result.putString("vetName", selectedVetName);
 
         // שליחת קישור התמונה ב-Bundle
         if (selectedImageUri != null) {
@@ -158,8 +235,27 @@ public class AddDogProfileFragment extends Fragment {
         // שליחת התוצאה ל-HomeFragment
         getParentFragmentManager().setFragmentResult("editProfileKey", result);
 
+        // שמירה ב-SharedPreferences (ללא lastVetChange)
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        editor.putString("vetId", selectedVetId);
+        editor.putString("vetName", selectedVetName);
+        editor.apply();
+
+        // שמירה גם בתת-קולקשן Dogs של המשתמש
+        Map<String, Object> dogBasicData = new HashMap<>();
+        dogBasicData.put("dogId", dogId);
+        dogBasicData.put("name", name);
+        dogBasicData.put("profileImageUrl", selectedImageUri != null ? selectedImageUri.toString() : "");
+        dogBasicData.put("vetId", selectedVetId);
+        dogBasicData.put("age", age);
+        db.collection("Users").document(ownerId)
+            .collection("Dogs").document(dogId)
+            .set(dogBasicData)
+            .addOnSuccessListener(aVoid -> Log.d(TAG, "Dog basic data saved to user's Dogs subcollection"))
+            .addOnFailureListener(e -> Log.e(TAG, "Error saving dog to user's Dogs subcollection: " + e.getMessage()));
+
         // חזרה למסך הבית
-        Toast.makeText(getContext(), "Dog profile added", Toast.LENGTH_SHORT).show();
+        Toast.makeText(requireContext(), "Dog profile added", Toast.LENGTH_SHORT).show();
         navigateBack();
     }
 
