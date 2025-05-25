@@ -33,7 +33,7 @@ public class ChatFragment extends Fragment {
     private FirebaseFirestore db;
     private FirebaseAuth auth;
     private ChatPreviewAdapter adapter;
-    private List<Map<String, Object>> chatList = new ArrayList<>();
+    private List<ChatPreview> chatList = new ArrayList<>();
 
     private boolean isVet = false; // יקבע לפי סוג המשתמש
 
@@ -102,11 +102,11 @@ public class ChatFragment extends Fragment {
         recyclerView.setAdapter(adapter);
     }
 
-    private void openChatFragment(Map<String, Object> chat) {
+    private void openChatFragment(ChatPreview chat) {
         ChatMessageFragment chatFragment = ChatMessageFragment.newInstance(
-                chat.get("chatId") != null ? chat.get("chatId").toString() : "",
-                chat.get("displayName") != null ? chat.get("displayName").toString() : "",
-                chat.get("imageUrl") != null ? chat.get("imageUrl").toString() : "",
+                chat.chatId,
+                chat.displayName,
+                chat.imageUrl,
                 isVet
         );
 
@@ -143,13 +143,9 @@ public class ChatFragment extends Fragment {
                         if (imageUrl == null || imageUrl.isEmpty()) imageUrl = "https://example.com/default_vet_image.png";
                     }
                     Log.d(TAG, "ChatPreview: chatId=" + chatId + ", displayName=" + displayName + ", imageUrl=" + imageUrl);
-                    chatList.add(new HashMap<>(Map.of(
-                            "chatId", chatId,
-                            "displayName", displayName,
-                            "imageUrl", imageUrl,
-                            "lastMessage", lastMessage,
-                            "lastMessageTime", lastMessageTime
-                    )));
+                    
+                    ChatPreview chatPreview = new ChatPreview(chatId, displayName, imageUrl, lastMessage, lastMessageTime);
+                    chatList.add(chatPreview);
                 }
                 adapter.notifyDataSetChanged();
                 if (chatList.isEmpty()) {
@@ -275,13 +271,8 @@ public class ChatFragment extends Fragment {
                         displayName = doc.getString("vetName");
                         imageUrl = doc.getString("vetImageUrl");
                     }
-                    Map<String, Object> chatMap = new HashMap<>();
-                    chatMap.put("chatId", doc.getId());
-                    chatMap.put("displayName", displayName);
-                    chatMap.put("imageUrl", imageUrl);
-                    chatMap.put("lastMessage", doc.getString("lastMessage"));
-                    chatMap.put("lastMessageTime", doc.getTimestamp("lastMessageTime"));
-                    openChatFragment(chatMap);
+                    ChatPreview chatPreview = new ChatPreview(doc.getId(), displayName, imageUrl);
+                    openChatFragment(chatPreview);
                     return;
                 }
                 // לא נמצא צ'אט - צור חדש
@@ -302,7 +293,6 @@ public class ChatFragment extends Fragment {
             db.collection("DogProfiles").document(selectedId).get()
                 .addOnSuccessListener(dogDoc -> {
                     if (dogDoc.exists()) {
-                        // Manual extraction to avoid type issues
                         String ownerId = dogDoc.getString("ownerId");
                         String dogImageUrl = dogDoc.getString("profileImageUrl");
                         if (dogImageUrl == null || dogImageUrl.isEmpty()) {
@@ -439,7 +429,8 @@ public class ChatFragment extends Fragment {
                 // פתיחת הצ'אט החדש
                 String displayName = isVet ? (String) data.get("dogName") : (String) data.get("vetName");
                 String imageUrl = isVet ? (String) data.get("dogImageUrl") : (String) data.get("vetImageUrl");
-                openChatFragment(data);
+                ChatPreview chatPreview = new ChatPreview(chatId, displayName, imageUrl);
+                openChatFragment(chatPreview);
             })
             .addOnFailureListener(e -> {
                 Log.e(TAG, "שגיאה ביצירת צ'אט", e);

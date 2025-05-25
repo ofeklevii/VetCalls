@@ -15,13 +15,13 @@ import java.util.*;
 public class ChatPreviewAdapter extends RecyclerView.Adapter<ChatPreviewAdapter.ChatViewHolder> {
 
     public interface OnChatClickListener {
-        void onChatClick(Map<String, Object> chat);
+        void onChatClick(ChatPreview chat);
     }
 
-    private List<Map<String, Object>> chatList;
+    private List<ChatPreview> chatList;
     private OnChatClickListener listener;
 
-    public ChatPreviewAdapter(List<Map<String, Object>> chatList, OnChatClickListener listener) {
+    public ChatPreviewAdapter(List<ChatPreview> chatList, OnChatClickListener listener) {
         this.chatList = chatList;
         this.listener = listener;
     }
@@ -35,15 +35,12 @@ public class ChatPreviewAdapter extends RecyclerView.Adapter<ChatPreviewAdapter.
 
     @Override
     public void onBindViewHolder(@NonNull ChatViewHolder holder, int position) {
-        Map<String, Object> chat = chatList.get(position);
+        ChatPreview chat = chatList.get(position);
 
         // Set name and image
-        String displayName = chat.get("displayName") != null ? chat.get("displayName").toString() : "";
-        String imageUrl = chat.get("imageUrl") != null ? chat.get("imageUrl").toString() : "";
-
-        holder.name.setText(displayName);
+        holder.name.setText(chat.displayName);
         Glide.with(holder.itemView.getContext())
-                .load(imageUrl)
+                .load(chat.imageUrl)
                 .placeholder(R.drawable.user_person_profile_avatar_icon_190943)
                 .into(holder.image);
 

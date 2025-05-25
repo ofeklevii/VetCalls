@@ -6,13 +6,22 @@
     android:orientation="vertical"
     android:padding="8dp">
 
+    <TextView
+        android:id="@+id/dateHeader"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:layout_marginBottom="8dp"
+        android:textColor="@android:color/darker_gray"
+        android:textSize="12sp"
+        android:visibility="gone" />
+
     <LinearLayout
         android:id="@+id/messageBubble"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:padding="8dp"
-        android:layout_gravity="start"
         android:background="@drawable/message_background_other">
 
         <TextView

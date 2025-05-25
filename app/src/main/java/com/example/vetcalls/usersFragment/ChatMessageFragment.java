@@ -235,6 +235,10 @@ public class ChatMessageFragment extends Fragment {
 
                     db.collection("Chats").document(chatId)
                             .update(lastMessageData)
+                            .addOnSuccessListener(aVoid -> {
+                                // שליחת התראה למקבל
+                                sendNotification(text);
+                            })
                             .addOnFailureListener(e ->
                                     Log.e(TAG, "שגיאה בעדכון ההודעה האחרונה", e));
                 })
@@ -242,6 +246,43 @@ public class ChatMessageFragment extends Fragment {
                     Log.e(TAG, "שגיאה בשליחת הודעה", e);
                     Toast.makeText(getContext(), "שגיאה בשליחת הודעה", Toast.LENGTH_SHORT).show();
                 });
+    }
+
+    private void sendNotification(String messageText) {
+        // קבלת פרטי הצ'אט
+        db.collection("Chats").document(chatId).get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    String receiverId;
+                    String senderName;
+                    String senderImage;
+
+                    if (isVet) {
+                        receiverId = documentSnapshot.getString("ownerId");
+                        senderName = documentSnapshot.getString("vetName");
+                        senderImage = documentSnapshot.getString("vetImageUrl");
+                    } else {
+                        receiverId = documentSnapshot.getString("vetId");
+                        senderName = documentSnapshot.getString("dogName");
+                        senderImage = documentSnapshot.getString("dogImageUrl");
+                    }
+
+                    // שליחת התראה דרך Firebase Cloud Functions
+                    Map<String, Object> notificationData = new HashMap<>();
+                    notificationData.put("receiverId", receiverId);
+                    notificationData.put("title", senderName);
+                    notificationData.put("message", messageText);
+                    notificationData.put("senderImage", senderImage);
+                    notificationData.put("chatId", chatId);
+
+                    db.collection("Notifications")
+                            .add(notificationData)
+                            .addOnSuccessListener(documentReference -> 
+                                Log.d(TAG, "התראה נשלחה בהצלחה"))
+                            .addOnFailureListener(e -> 
+                                Log.e(TAG, "שגיאה בשליחת התראה", e));
+                })
+                .addOnFailureListener(e -> 
+                    Log.e(TAG, "שגיאה בקבלת פרטי צ'אט", e));
     }
 
     private void showAttachmentOptions() {

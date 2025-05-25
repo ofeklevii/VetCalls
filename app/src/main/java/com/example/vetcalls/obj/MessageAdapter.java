@@ -21,12 +21,14 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
     private ArrayList<Message> messageList;
     private String currentUserId;
     private SimpleDateFormat timeFormat;
+    private SimpleDateFormat dateFormat;
 
     public MessageAdapter(Context context, ArrayList<Message> messageList, String currentUserId) {
         this.context = context;
         this.messageList = messageList;
         this.currentUserId = currentUserId;
         this.timeFormat = new SimpleDateFormat("HH:mm", Locale.getDefault());
+        this.dateFormat = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
     }
 
     @NonNull
@@ -44,6 +46,13 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         holder.textMessage.setVisibility(View.GONE);
         holder.imageMessage.setVisibility(View.GONE);
         holder.videoMessage.setVisibility(View.GONE);
+        holder.dateHeader.setVisibility(View.GONE);
+
+        // בדיקה אם צריך להציג כותרת תאריך
+        if (position == 0 || !isSameDay(messageList.get(position - 1).getTimestamp(), msg.getTimestamp())) {
+            holder.dateHeader.setVisibility(View.VISIBLE);
+            holder.dateHeader.setText(getDateHeader(msg.getTimestamp()));
+        }
 
         // הגדרת כיוון לבועת ההודעה לפי השולח
         LinearLayout messageBubble = holder.messageBubble;
@@ -93,6 +102,41 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         }
     }
 
+    private boolean isSameDay(Date date1, Date date2) {
+        if (date1 == null || date2 == null) return false;
+        Calendar cal1 = Calendar.getInstance();
+        Calendar cal2 = Calendar.getInstance();
+        cal1.setTime(date1);
+        cal2.setTime(date2);
+        return cal1.get(Calendar.YEAR) == cal2.get(Calendar.YEAR) &&
+                cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR);
+    }
+
+    private String getDateHeader(Date date) {
+        if (date == null) return "";
+
+        Calendar messageCal = Calendar.getInstance();
+        Calendar todayCal = Calendar.getInstance();
+        messageCal.setTime(date);
+        todayCal.setTime(new Date());
+
+        // אם זה היום
+        if (isSameDay(date, new Date())) {
+            return "היום";
+        }
+
+        // אם זה אתמול
+        Calendar yesterdayCal = Calendar.getInstance();
+        yesterdayCal.add(Calendar.DAY_OF_YEAR, -1);
+        if (messageCal.get(Calendar.YEAR) == yesterdayCal.get(Calendar.YEAR) &&
+                messageCal.get(Calendar.DAY_OF_YEAR) == yesterdayCal.get(Calendar.DAY_OF_YEAR)) {
+            return "אתמול";
+        }
+
+        // אחרת, הצג את התאריך המלא
+        return dateFormat.format(date);
+    }
+
     @Override
     public int getItemCount() {
         return messageList.size();
@@ -105,6 +149,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
         ImageView imageMessage;
         VideoView videoMessage;
         TextView messageTime;
+        TextView dateHeader;
 
         public MessageViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -114,6 +159,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.MessageV
             imageMessage = itemView.findViewById(R.id.imageMessage);
             videoMessage = itemView.findViewById(R.id.videoMessage);
             messageTime = itemView.findViewById(R.id.messageTime);
+            dateHeader = itemView.findViewById(R.id.dateHeader);
         }
     }
 
