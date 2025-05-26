@@ -383,7 +383,14 @@ public class AddAppointmentFragment extends Fragment {
         Map<String, Object> appointmentData = createAppointmentData();
         addReminders(appointmentData);
 
+        // שמירה בתת-קולקשן של הכלב (קיים)
         FirestoreUserHelper.addAppointment(appointmentId, appointmentData);
+
+        // שמירה גם ב-root appointments
+        FirebaseFirestore.getInstance().collection("appointments")
+            .document(appointmentId)
+            .set(appointmentData);
+
         Toast.makeText(requireContext(), isEdit ? "Appointment updated successfully" : "Appointment created successfully", Toast.LENGTH_SHORT).show();
         requireActivity().getSupportFragmentManager().popBackStack();
     }
@@ -407,7 +414,9 @@ public class AddAppointmentFragment extends Fragment {
         }
 
         if (isVet) {
-            data.put("vetName", "Dr. " + FirebaseAuth.getInstance().getCurrentUser().getEmail().split("@")[0]);
+            SharedPreferences prefs = requireActivity().getSharedPreferences("VetProfile", Context.MODE_PRIVATE);
+            String fullName = prefs.getString("fullName", "Veterinarian");
+            data.put("vetName", fullName);
         } else if (vetSpinner.getSelectedItem() instanceof VetItem) {
             data.put("vetName", ((VetItem) vetSpinner.getSelectedItem()).getName());
         }

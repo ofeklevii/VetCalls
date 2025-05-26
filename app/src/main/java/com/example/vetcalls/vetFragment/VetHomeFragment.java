@@ -29,7 +29,9 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.gson.Gson;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class VetHomeFragment extends Fragment {
@@ -65,6 +67,8 @@ public class VetHomeFragment extends Fragment {
 
         // הגדרת מאזין ללחיצה על כפתור עריכה
         editProfileButton.setOnClickListener(v -> openEditProfileFragment());
+
+        loadVetProfileFromSharedPreferences();
 
         return view;
     }

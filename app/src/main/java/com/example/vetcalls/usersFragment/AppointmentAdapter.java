@@ -1,10 +1,12 @@
 package com.example.vetcalls.usersFragment;
 
+import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import androidx.annotation.NonNull;
 import androidx.fragment.app.FragmentActivity;
+import androidx.fragment.app.FragmentTransaction;
 import androidx.recyclerview.widget.RecyclerView;
 import com.example.vetcalls.R;
 
@@ -38,23 +40,16 @@ public class AppointmentAdapter extends RecyclerView.Adapter<AppointmentViewHold
 
         // פתיחת מסך פרטים בלחיצה עם כל הפרטים הנדרשים
         holder.itemView.setOnClickListener(v -> {
-            AppointmentDetailsFragment detailsFragment = AppointmentDetailsFragment.newInstanceFull(
-                    appointment.get("date") != null ? appointment.get("date").toString() : "",
-                    appointment.get("startTime") != null ? appointment.get("startTime").toString() : "",
-                    appointment.get("notes") != null ? appointment.get("notes").toString() : "",
-                    appointment.get("vetName") != null ? appointment.get("vetName").toString() : "",
-                    appointment.get("type") != null ? appointment.get("type").toString() : "",
-                    appointment.get("id") != null ? appointment.get("id").toString() : "",
-                    appointment.get("dogId") != null ? appointment.get("dogId").toString() : "",
-                    appointment.get("vetId") != null ? appointment.get("vetId").toString() : "",
-                    appointment.get("dogName") != null ? appointment.get("dogName").toString() : ""
-            );
+            AppointmentDetailsFragment detailsFragment = new AppointmentDetailsFragment();
+            Bundle args = new Bundle();
+            args.putString("appointmentId", (String) appointment.get("id"));
+            detailsFragment.setArguments(args);
 
-            // החלפת הפרגמנט הנוכחי בפרגמנט הפרטים
-            activity.getSupportFragmentManager().beginTransaction()
-                    .replace(R.id.fragment_container, detailsFragment)
-                    .addToBackStack(null)
-                    .commit();
+            FragmentActivity activity = (FragmentActivity) holder.itemView.getContext();
+            FragmentTransaction transaction = activity.getSupportFragmentManager().beginTransaction();
+            transaction.replace(R.id.fragment_container, detailsFragment);
+            transaction.addToBackStack(null);
+            transaction.commit();
         });
     }
 

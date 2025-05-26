@@ -8,78 +8,103 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
-        <ImageView
-            android:id="@+id/dogImage"
-            android:layout_width="200dp"
-            android:layout_height="200dp"
-            android:layout_gravity="center"
-            android:layout_marginBottom="16dp"
-            android:scaleType="centerCrop"
-            android:src="@drawable/user_person_profile_avatar_icon_190943" />
-
-        <TextView android:id="@+id/dogName"
-            android:textSize="24sp"
-            android:textStyle="bold"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:layout_marginBottom="8dp"/>
-
-        <TextView android:id="@+id/patientBirthday"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textSize="16sp"
-            android:layout_marginBottom="4dp"/>
-            
-        <TextView android:id="@+id/patientRace"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textSize="16sp"
-            android:layout_marginBottom="4dp"/>
-            
-        <TextView android:id="@+id/patientWeight"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textSize="16sp"
-            android:layout_marginBottom="4dp"/>
-            
-        <TextView android:id="@+id/patientVaccines"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textSize="16sp"
-            android:layout_marginBottom="4dp"/>
-            
-        <TextView android:id="@+id/patientAllergies"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textSize="16sp"
-            android:layout_marginBottom="4dp"/>
-
-        <TextView android:id="@+id/lastVisitText"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="16dp"/>
-
-        <View android:layout_height="1dp" 
-            android:layout_width="match_parent" 
-            android:background="#CCC" 
-            android:layout_marginVertical="16dp"/>
-
-        <TextView
-            android:text="Appointment History:"
-            android:textStyle="bold"
-            android:textSize="18sp"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="8dp"/>
-
-        <LinearLayout
-            android:id="@+id/appointmentsContainer"
+        <!-- רשימת כל הכלבים של הווטרינר -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/dogsRecyclerView"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"/>
+            android:visibility="visible"
+            android:layout_marginBottom="16dp"/>
 
+        <!-- עוטף את כל פרטי הכלב -->
+        <LinearLayout
+            android:id="@+id/detailsContainer"
+            android:orientation="vertical"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone">
+
+            <Button
+                android:id="@+id/backToListButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Back"
+                android:backgroundTint="#29B6F6"
+                android:layout_gravity="start"
+                android:layout_marginBottom="8dp"/>
+
+            <ImageView
+                android:id="@+id/dogImage"
+                android:layout_width="200dp"
+                android:layout_height="200dp"
+                android:layout_gravity="center"
+                android:layout_marginBottom="16dp"
+                android:scaleType="centerCrop"
+                android:src="@drawable/user_person_profile_avatar_icon_190943" />
+
+            <TextView android:id="@+id/dogName"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_marginBottom="8dp"/>
+
+            <TextView android:id="@+id/patientBirthday"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="16sp"
+                android:layout_marginBottom="4dp"/>
+                
+            <TextView android:id="@+id/patientRace"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="16sp"
+                android:layout_marginBottom="4dp"/>
+                
+            <TextView android:id="@+id/patientWeight"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="16sp"
+                android:layout_marginBottom="4dp"/>
+                
+            <TextView android:id="@+id/patientVaccines"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="16sp"
+                android:layout_marginBottom="4dp"/>
+                
+            <TextView android:id="@+id/patientAllergies"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="16sp"
+                android:layout_marginBottom="4dp"/>
+
+            <TextView android:id="@+id/lastVisitText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="16dp"/>
+
+            <View android:layout_height="1dp" 
+                android:layout_width="match_parent" 
+                android:background="#CCC" 
+                android:layout_marginVertical="16dp"/>
+
+            <TextView
+                android:text="Appointment History:"
+                android:textStyle="bold"
+                android:textSize="18sp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"/>
+
+            <LinearLayout
+                android:id="@+id/appointmentsContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"/>
+        </LinearLayout>
     </LinearLayout>
 </ScrollView>

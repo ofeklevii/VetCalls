@@ -213,6 +213,9 @@ public class AddDogProfileFragment extends Fragment {
         newDogProfile.lastVetChange = now;
         newDogProfile.lastUpdated = now;
 
+        // עדכון גלובלי של שם ותמונה בצ'אטים
+        com.example.vetcalls.obj.FirestoreUserHelper.updateDogProfileEverywhere(newDogProfile);
+
         // שליחת המידע ל-HomeFragment כדי לעדכן את הפרופיל העליון
         Bundle result = new Bundle();
         result.putString("updatedBio", bio);

@@ -10,6 +10,7 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import android.widget.Toast;
 
 import com.example.vetcalls.R;
 import com.example.vetcalls.obj.Appointment;
@@ -18,8 +19,13 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+
+import java.text.SimpleDateFormat;
+import android.util.Log;
 
 public class HistoryFragment extends Fragment {
 
@@ -34,6 +40,8 @@ public class HistoryFragment extends Fragment {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_history, container, false);
+
+        Log.d("HistoryDebug", "onCreateView called");
 
         // אתחול הרכיבים
         recyclerView = view.findViewById(R.id.recyclerView);
@@ -62,6 +70,8 @@ public class HistoryFragment extends Fragment {
         // טעינת תורים שהסתיימו
         loadCompletedAppointments();
 
+        Toast.makeText(getContext(), "HistoryFragment loaded", Toast.LENGTH_SHORT).show();
+
         return view;
     }
 
@@ -73,36 +83,55 @@ public class HistoryFragment extends Fragment {
     }
 
     private void loadCompletedAppointments() {
-        // ניקוי הרשימה הנוכחית
         appointmentList.clear();
 
-        // שאילתה לפיירבייס לתורים שהושלמו
-        // התאם את המסלול לאוסף בהתאם למבנה ה-Firebase שלך
         db.collection("appointments")
-                .whereEqualTo("completed", true)  // רק תורים שהושלמו
-                .whereEqualTo("patientId", userId)  // רק תורים של המשתמש הנוכחי
+                .whereEqualTo("ownerId", userId)
                 .get()
                 .addOnSuccessListener(queryDocumentSnapshots -> {
-                    if (queryDocumentSnapshots.isEmpty()) {
-                        // לא נמצאו תורים שהושלמו
-                        showEmptyState();
-                    } else {
-                        // עיבוד התורים
-                        for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
-                            appointmentList.add(document.getData());
+                    Log.d("HistoryDebug", "userId=" + userId);
+                    Log.d("HistoryDebug", "query size=" + queryDocumentSnapshots.size());
+                    List<Map<String, Object>> pastAppointments = new ArrayList<>();
+                    Date now = new Date();
+                    SimpleDateFormat format = new SimpleDateFormat("yyyy-M-d HH:mm", Locale.getDefault());
+
+                    for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
+                        String date = (String) document.get("date");
+                        String endTime = (String) document.get("endTime");
+                        Boolean completed = (Boolean) document.get("completed");
+                        Log.d("HistoryDebug", "date=" + date + ", endTime=" + endTime);
+                        if (date != null && endTime != null) {
+                            try {
+                                Date appointmentEnd = format.parse(date + " " + endTime);
+                                Log.d("HistoryDebug", "appointmentEnd=" + appointmentEnd + ", now=" + now);
+                                if ((appointmentEnd != null && appointmentEnd.before(now)) || (completed != null && completed)) {
+                                    pastAppointments.add(document.getData());
+                                    Log.d("HistoryDebug", "ADDED: " + document.getId());
+                                } else {
+                                    Log.d("HistoryDebug", "NOT ADDED: " + document.getId());
+                                }
+                            } catch (Exception e) {
+                                Log.e("HistoryDebug", "Parse error: " + e.getMessage());
+                            }
                         }
-
-                        // עדכון האדפטר
-                        adapter.updateAppointments(appointmentList);
-
-                        // הסתרת מצב ריק אם יש תורים
-                        hideEmptyState();
                     }
+
+                    // סדר יורד לפי תאריך+שעה
+                    pastAppointments.sort((a, b) -> {
+                        try {
+                            Date da = format.parse(a.get("date") + " " + a.get("endTime"));
+                            Date db_ = format.parse(b.get("date") + " " + b.get("endTime"));
+                            return db_.compareTo(da);
+                        } catch (Exception e) { return 0; }
+                    });
+
+                    appointmentList.addAll(pastAppointments);
+                    adapter.updateAppointments(appointmentList);
+
+                    if (appointmentList.isEmpty()) showEmptyState();
+                    else hideEmptyState();
                 })
-                .addOnFailureListener(e -> {
-                    // טיפול בשגיאות
-                    showEmptyState();
-                });
+                .addOnFailureListener(e -> showEmptyState());
     }
 
     private void showEmptyState() {

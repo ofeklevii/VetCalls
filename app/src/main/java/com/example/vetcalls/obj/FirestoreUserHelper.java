@@ -179,6 +179,9 @@ public class FirestoreUserHelper {
                         .set(dogProfile, SetOptions.merge())
                         .addOnSuccessListener(aVoid -> {
                             Log.d(TAG, "Image URL updated in DogProfiles");
+                            // עדכון גלובלי של שם ותמונה בצ'אטים
+                            dogProfile.dogId = dogId;
+                            updateDogProfileEverywhere(dogProfile);
                             if (listener != null) {
                                 listener.onUploadSuccess(imageUrl);
                             }

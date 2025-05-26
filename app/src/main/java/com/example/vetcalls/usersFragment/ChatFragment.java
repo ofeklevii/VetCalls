@@ -135,6 +135,21 @@ public class ChatFragment extends Fragment {
                         if (isVet) {
                             displayName = doc.getString("dogName");
                             imageUrl = doc.getString("dogImageUrl");
+                            String dogId = doc.getString("dogId");
+                            if ((displayName == null || displayName.isEmpty() || imageUrl == null || imageUrl.isEmpty()) && dogId != null && !dogId.isEmpty()) {
+                                // נטען את הפרטים מ-DogProfiles
+                                db.collection("DogProfiles").document(dogId).get()
+                                        .addOnSuccessListener(dogDoc -> {
+                                            String name = dogDoc.getString("name");
+                                            String img = dogDoc.getString("profileImageUrl");
+                                            String finalName = (name != null && !name.isEmpty()) ? name : "כלב";
+                                            String finalImg = (img != null && !img.isEmpty()) ? img : "https://example.com/default_dog_image.png";
+                                            ChatPreview chatPreview = new ChatPreview(chatId, finalName, finalImg, lastMessage, lastMessageTime);
+                                            chatList.add(chatPreview);
+                                            adapter.notifyDataSetChanged();
+                                        });
+                                continue;
+                            }
                             if (displayName == null || displayName.isEmpty()) displayName = "כלב";
                             if (imageUrl == null || imageUrl.isEmpty()) imageUrl = "https://example.com/default_dog_image.png";
                         } else {
@@ -170,14 +185,23 @@ public class ChatFragment extends Fragment {
                         Map<String, String> dogIdMap = new HashMap<>();
 
                         for (DocumentSnapshot doc : query.getDocuments()) {
-                            DogProfile dog = doc.toObject(DogProfile.class);
-                            String name = dog != null ? dog.name : null;
-                            if (name != null) {
+                            String name = doc.getString("name");
+                            String dogId = doc.getId();
+                            String imageUrl = doc.getString("profileImageUrl");
+                            Object ageObj = doc.get("age");
+                            String age = "";
+                            if (ageObj != null) {
+                                age = ageObj.toString();
+                            }
+                            // אפשר להוסיף עוד שדות אם צריך
+
+                            if (name != null && !name.isEmpty()) {
                                 dogNames.add(name);
-                                dogIdMap.put(name, doc.getId());
+                                dogIdMap.put(name, dogId);
                             }
                         }
 
+                        Log.d(TAG, "Loaded dogs for vet: " + dogNames);
                         if (!dogNames.isEmpty()) {
                             showSelectionDialog(dogNames, dogIdMap);
                         } else {
@@ -291,15 +315,16 @@ public class ChatFragment extends Fragment {
                         if (dogDoc.exists()) {
                             String ownerId = dogDoc.getString("ownerId");
                             String dogImageUrl = dogDoc.getString("profileImageUrl");
+                            String dogName = dogDoc.getString("name");
                             if (dogImageUrl == null || dogImageUrl.isEmpty()) {
                                 dogImageUrl = "https://example.com/default_dog_image.png";
                             }
-                            String dogName = dogDoc.getString("name");
                             if (dogName == null || dogName.isEmpty()) {
                                 dogName = "כלב";
                             }
+                            Log.d(TAG, "Dog details - Name: " + dogName + ", Image: " + dogImageUrl);
                             String chatId = selectedId + "_" + currentUserId;
-                            saveChatToFirestore(chatId, currentUserId, ownerId, dogName, dogImageUrl);
+                            saveChatToFirestore(chatId, currentUserId, ownerId, dogName, dogImageUrl, "וטרינר", "https://example.com/default_vet_image.png");
                         } else {
                             Context context = getContext();
                             if (context != null) {
@@ -332,7 +357,7 @@ public class ChatFragment extends Fragment {
                                 }
                             }
                             String chatId = currentUserId + "_" + selectedId;
-                            saveChatToFirestore(chatId, currentUserId, selectedId, vetName, vetImageUrl);
+                            saveChatToFirestore(chatId, currentUserId, selectedId, "כלב", "https://example.com/default_dog_image.png", vetName, vetImageUrl);
                         } else {
                             Context context = getContext();
                             if (context != null) {
@@ -351,7 +376,7 @@ public class ChatFragment extends Fragment {
     }
 
     private void saveChatToFirestore(String chatId, String currentUserId, String otherId,
-                                     String displayName, String imageUrl) {
+                                     String dogName, String dogImageUrl, String vetName, String vetImageUrl) {
         // וידוא שיש לנו את כל המידע הנדרש
         if (currentUserId == null || otherId == null) {
             Log.e(TAG, "saveChatToFirestore: חסרים מזההי משתמשים");
@@ -381,21 +406,31 @@ public class ChatFragment extends Fragment {
 
         // הוספת פרטים אמיתיים לפי סוג המשתמש
         if (isVet) {
-            data.put("dogName", displayName != null && !displayName.isEmpty() ? displayName : "כלב");
-            data.put("dogImageUrl", imageUrl != null && !imageUrl.isEmpty() ? imageUrl : "https://example.com/default_dog_image.png");
-            data.put("vetName", "וטרינר");
-            data.put("vetImageUrl", "https://example.com/default_vet_image.png");
+            data.put("dogName", dogName != null && !dogName.isEmpty() ? dogName : "כלב");
+            data.put("dogImageUrl", dogImageUrl != null && !dogImageUrl.isEmpty() ? dogImageUrl : "https://example.com/default_dog_image.png");
+            data.put("vetName", vetName != null && !vetName.isEmpty() ? vetName : "וטרינר");
+            data.put("vetImageUrl", vetImageUrl != null && !vetImageUrl.isEmpty() ? vetImageUrl : "https://example.com/default_vet_image.png");
             data.put("dogId", chatId.split("_")[0]);
             data.put("vetId", currentUserId);
             data.put("ownerId", otherId);
+
+            Log.d(TAG, "Saving chat as vet - Dog details:");
+            Log.d(TAG, "dogName: " + data.get("dogName"));
+            Log.d(TAG, "dogImageUrl: " + data.get("dogImageUrl"));
+            Log.d(TAG, "dogId: " + data.get("dogId"));
         } else {
-            data.put("vetName", displayName != null && !displayName.isEmpty() ? displayName : "וטרינר");
-            data.put("vetImageUrl", imageUrl != null && !imageUrl.isEmpty() ? imageUrl : "https://example.com/default_vet_image.png");
-            data.put("dogName", "כלב");
-            data.put("dogImageUrl", "https://example.com/default_dog_image.png");
+            data.put("vetName", vetName != null && !vetName.isEmpty() ? vetName : "וטרינר");
+            data.put("vetImageUrl", vetImageUrl != null && !vetImageUrl.isEmpty() ? vetImageUrl : "https://example.com/default_vet_image.png");
+            data.put("dogName", dogName != null && !dogName.isEmpty() ? dogName : "כלב");
+            data.put("dogImageUrl", dogImageUrl != null && !dogImageUrl.isEmpty() ? dogImageUrl : "https://example.com/default_dog_image.png");
             data.put("dogId", chatId.split("_")[0]);
             data.put("vetId", otherId);
             data.put("ownerId", currentUserId);
+
+            Log.d(TAG, "Saving chat as owner - Vet details:");
+            Log.d(TAG, "vetName: " + data.get("vetName"));
+            Log.d(TAG, "vetImageUrl: " + data.get("vetImageUrl"));
+            Log.d(TAG, "vetId: " + data.get("vetId"));
         }
 
         // הוספת לוגים לדיבוג

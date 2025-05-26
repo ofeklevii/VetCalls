@@ -143,4 +143,18 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>
 
+    <!-- כפתור סימון תור כהסתיים -->
+    <Button
+        android:id="@+id/markCompletedButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Mark as Completed"
+        android:backgroundTint="@android:color/holo_green_light"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="16dp"
+        app:layout_constraintTop_toBottomOf="@id/deleteAppointmentButton"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"/>
+
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,5 +1,6 @@
 package com.example.vetcalls.usersFragment;
 
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -15,6 +16,8 @@ import androidx.fragment.app.Fragment;
 
 import com.example.vetcalls.R;
 import com.example.vetcalls.obj.FirestoreUserHelper;
+import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.FirebaseFirestore;
 
 public class AppointmentDetailsFragment extends Fragment {
 
@@ -85,6 +88,11 @@ public class AppointmentDetailsFragment extends Fragment {
         Button editButton = view.findViewById(R.id.editAppointmentButton);
         Button deleteButton = view.findViewById(R.id.deleteAppointmentButton);
         TextView textDogName = view.findViewById(R.id.textDogName);
+        Button markCompletedButton = view.findViewById(R.id.markCompletedButton);
+
+        // בדיקת isVet מ-SharedPreferences
+        SharedPreferences prefs = requireActivity().getSharedPreferences("UserProfile", android.content.Context.MODE_PRIVATE);
+        boolean isVet = prefs.getBoolean("isVet", false);
 
         if (getArguments() != null) {
             String date = getArguments().getString(ARG_DATE, "");
@@ -139,6 +147,22 @@ public class AppointmentDetailsFragment extends Fragment {
             if (deleteButton != null) {
                 deleteButton.setVisibility(canEditDelete ? View.VISIBLE : View.GONE);
                 deleteButton.setOnClickListener(v -> showDeleteConfirmation(appointmentId, dogId, vetId));
+            }
+
+            // הצגת כפתור "סמן כתור שהסתיים" רק לוטרינר
+            if (markCompletedButton != null) {
+                markCompletedButton.setVisibility(isVet ? View.VISIBLE : View.GONE);
+                markCompletedButton.setOnClickListener(v -> markAppointmentCompleted(appointmentId));
+            }
+
+            if ((date == null || date.isEmpty()) && dogId != null && !dogId.isEmpty() && appointmentId != null && !appointmentId.isEmpty()) {
+                // טען פרטי תור מה-DB
+                FirebaseFirestore.getInstance().collection("DogProfiles").document(dogId).collection("Appointments").document(appointmentId)
+                        .get().addOnSuccessListener(documentSnapshot -> {
+                            if (documentSnapshot.exists()) {
+                                updateUIWithAppointment(documentSnapshot);
+                            }
+                        });
             }
         }
 
@@ -212,5 +236,31 @@ public class AppointmentDetailsFragment extends Fragment {
                     }
                     Toast.makeText(requireContext(), "Error deleting appointment: " + error, Toast.LENGTH_LONG).show();
                 });
+    }
+
+    private void updateUIWithAppointment(DocumentSnapshot doc) {
+        View view = getView();
+        if (view == null) return;
+        ((TextView) view.findViewById(R.id.textDate)).setText("Date: " + doc.getString("date"));
+        ((TextView) view.findViewById(R.id.textTime)).setText("Time: " + doc.getString("startTime"));
+        ((TextView) view.findViewById(R.id.textVetName)).setText("Veterinarian: " + doc.getString("vetName"));
+        ((TextView) view.findViewById(R.id.textAppointmentType)).setText("Appointment type: " + doc.getString("type"));
+        ((TextView) view.findViewById(R.id.textDogName)).setText("Dog: " + doc.getString("dogName"));
+        ((TextView) view.findViewById(R.id.textDetails)).setText("Notes: " + (doc.getString("notes") == null ? "No additional notes" : doc.getString("notes")));
+    }
+
+    private void markAppointmentCompleted(String appointmentId) {
+        String dogId = null;
+        if (getArguments() != null) {
+            dogId = getArguments().getString(ARG_DOG_ID, "");
+        }
+        if (appointmentId == null || appointmentId.isEmpty() || dogId == null || dogId.isEmpty()) {
+            Toast.makeText(requireContext(), "Missing appointment or dog ID", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        FirebaseFirestore.getInstance().collection("DogProfiles").document(dogId).collection("Appointments").document(appointmentId)
+                .update("completed", true)
+                .addOnSuccessListener(aVoid -> Toast.makeText(requireContext(), "Appointment marked as completed", Toast.LENGTH_SHORT).show())
+                .addOnFailureListener(e -> Toast.makeText(requireContext(), "Failed to update appointment", Toast.LENGTH_SHORT).show());
     }
 }
