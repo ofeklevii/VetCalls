@@ -6,7 +6,7 @@ package com.example.vetcalls.obj;
 public class DogProfile {
     public String dogId;
     public String name;
-    public String age;
+    public String age;  // נשמר כ-String אבל יכול להיות גם Long בפיירסטור
     public String bio;
     public String profileImageUrl;
     public String race;
@@ -23,6 +23,7 @@ public class DogProfile {
 
     public DogProfile() {
         this.lastUpdated = System.currentTimeMillis();
+        this.age = "Unknown";  // ערך ברירת מחדל
     }
 
     @Override

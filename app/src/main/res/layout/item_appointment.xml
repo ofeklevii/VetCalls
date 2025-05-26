@@ -19,7 +19,7 @@
             android:id="@+id/textAppointmentDate"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Date: Jan 1, 2024"
+            android:text="Date: "
             android:textSize="18sp"
             android:textStyle="bold"
             android:textColor="@color/black"/>
@@ -29,12 +29,20 @@
             android:id="@+id/textAppointmentTime"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Time: 10:30 AM"
+            android:text="Time: "
             android:textSize="16sp"
             android:textColor="@color/blue1"
             android:layout_marginTop="4dp"/>
 
-
+        <!-- Dog Name -->
+        <TextView
+            android:id="@+id/textDogName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Dog: "
+            android:textSize="16sp"
+            android:textColor="@color/black"
+            android:layout_marginTop="4dp"/>
 
     </LinearLayout>
 </androidx.cardview.widget.CardView>

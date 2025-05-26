@@ -3,7 +3,6 @@ package com.example.vetcalls.usersFragment;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.fragment.app.FragmentActivity;
 import androidx.recyclerview.widget.RecyclerView;
@@ -12,7 +11,7 @@ import com.example.vetcalls.R;
 import java.util.List;
 import java.util.Map;
 
-public class AppointmentAdapter extends RecyclerView.Adapter<AppointmentAdapter.ViewHolder> {
+public class AppointmentAdapter extends RecyclerView.Adapter<AppointmentViewHolder> {
     private List<Map<String, Object>> appointmentList;
     private FragmentActivity activity;
 
@@ -23,28 +22,32 @@ public class AppointmentAdapter extends RecyclerView.Adapter<AppointmentAdapter.
 
     @NonNull
     @Override
-    public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+    public AppointmentViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_appointment, parent, false);
-        return new ViewHolder(view);
+        return new AppointmentViewHolder(view);
     }
 
     @Override
-    public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
+    public void onBindViewHolder(@NonNull AppointmentViewHolder holder, int position) {
         Map<String, Object> appointment = appointmentList.get(position);
 
         // תצוגת תאריך ושעה
-        holder.dateTextView.setText("תאריך: " + (appointment.get("date") != null ? appointment.get("date").toString() : ""));
-        holder.timeTextView.setText("שעה: " + (appointment.get("time") != null ? appointment.get("time").toString() : ""));
+        holder.dateTextView.setText("Date: " + (appointment.get("date") != null ? appointment.get("date").toString() : ""));
+        holder.timeTextView.setText("Time: " + (appointment.get("startTime") != null ? appointment.get("startTime").toString() : ""));
+        holder.dogNameTextView.setText("Dog: " + (appointment.get("dogName") != null ? appointment.get("dogName").toString() : ""));
 
-        // פתיחת מסך פרטים בלחיצה
+        // פתיחת מסך פרטים בלחיצה עם כל הפרטים הנדרשים
         holder.itemView.setOnClickListener(v -> {
-            // יצירת פרגמנט פרטי תור עם כל המידע הנדרש
-            AppointmentDetailsFragment detailsFragment = AppointmentDetailsFragment.newInstance(
+            AppointmentDetailsFragment detailsFragment = AppointmentDetailsFragment.newInstanceFull(
                     appointment.get("date") != null ? appointment.get("date").toString() : "",
-                    appointment.get("time") != null ? appointment.get("time").toString() : "",
-                    appointment.get("details") != null ? appointment.get("details").toString() : "",
-                    appointment.get("veterinarian") != null ? appointment.get("veterinarian").toString() : "",
-                    appointment.get("type") != null ? appointment.get("type").toString() : ""
+                    appointment.get("startTime") != null ? appointment.get("startTime").toString() : "",
+                    appointment.get("notes") != null ? appointment.get("notes").toString() : "",
+                    appointment.get("vetName") != null ? appointment.get("vetName").toString() : "",
+                    appointment.get("type") != null ? appointment.get("type").toString() : "",
+                    appointment.get("id") != null ? appointment.get("id").toString() : "",
+                    appointment.get("dogId") != null ? appointment.get("dogId").toString() : "",
+                    appointment.get("vetId") != null ? appointment.get("vetId").toString() : "",
+                    appointment.get("dogName") != null ? appointment.get("dogName").toString() : ""
             );
 
             // החלפת הפרגמנט הנוכחי בפרגמנט הפרטים
@@ -64,15 +67,5 @@ public class AppointmentAdapter extends RecyclerView.Adapter<AppointmentAdapter.
     public void updateAppointments(List<Map<String, Object>> appointments) {
         this.appointmentList = appointments;
         notifyDataSetChanged();
-    }
-
-    public static class ViewHolder extends RecyclerView.ViewHolder {
-        TextView dateTextView, timeTextView;
-
-        public ViewHolder(View itemView) {
-            super(itemView);
-            dateTextView = itemView.findViewById(R.id.textAppointmentDate);
-            timeTextView = itemView.findViewById(R.id.textAppointmentTime);
-        }
     }
 }

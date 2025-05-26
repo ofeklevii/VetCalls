@@ -1,6 +1,5 @@
 package com.example.vetcalls.activities;
 
-import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.MenuItem;
 
@@ -10,8 +9,6 @@ import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentTransaction;
 
 import com.example.vetcalls.R;
-import com.example.vetcalls.vetFragment.VetHomeFragment;
-import com.example.vetcalls.vetFragment.VetScheduleFragment;
 import com.example.vetcalls.usersFragment.CalendarFragment;
 import com.example.vetcalls.usersFragment.ChatFragment;
 import com.example.vetcalls.usersFragment.HistoryFragment;

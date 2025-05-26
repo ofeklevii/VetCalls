@@ -107,8 +107,8 @@ public class FirestoreUserHelper {
 
     // הוספת פרופיל כלב - רק לאוסף DogProfiles
     public static void addDogProfile(String dogId, String name, String race, String age, String birthday,
-                                   String weight, String allergies, String vaccines, String bio,
-                                   String ownerId, String vetId, String vetName, long lastVetChange) {
+                                     String weight, String allergies, String vaccines, String bio,
+                                     String ownerId, String vetId, String vetName, long lastVetChange) {
         Log.d(TAG, "Adding dog profile: " + dogId + ", name: " + name + ", owner: " + ownerId);
 
         DogProfile dogProfile = new DogProfile();
@@ -256,6 +256,51 @@ public class FirestoreUserHelper {
                     .addOnSuccessListener(aVoid -> Log.d(TAG, "Appointment deleted from vet"))
                     .addOnFailureListener(e -> Log.e(TAG, "Failed to delete appointment from vet", e));
         }
+    }
+
+    // הוספת פונקציה חדשה למחיקה מלאה של תור עם callback-ים
+    public static void deleteAppointmentCompletely(String appointmentId, String dogId, String vetId,
+                                                   Runnable onSuccess,
+                                                   java.util.function.Consumer<String> onFailure) {
+        Log.d(TAG, "Starting complete deletion of appointment: " + appointmentId);
+
+        // מחיקה במקביל משני המקומות
+        Task<Void> deleteDogAppointment = db.collection("DogProfiles")
+                .document(dogId)
+                .collection("Appointments")
+                .document(appointmentId)
+                .delete();
+
+        Task<Void> deleteVetAppointment = db.collection("Veterinarians")
+                .document(vetId)
+                .collection("Appointments")
+                .document(appointmentId)
+                .delete();
+
+        // חכה שהשתיים יסתיימו
+        Tasks.whenAllComplete(deleteDogAppointment, deleteVetAppointment)
+                .addOnCompleteListener(task -> {
+                    boolean allSuccessful = true;
+                    StringBuilder errorMessages = new StringBuilder();
+
+                    for (Task<?> individualTask : task.getResult()) {
+                        if (!individualTask.isSuccessful()) {
+                            allSuccessful = false;
+                            Exception exception = individualTask.getException();
+                            if (exception != null) {
+                                errorMessages.append(exception.getMessage()).append("; ");
+                            }
+                        }
+                    }
+
+                    if (allSuccessful) {
+                        Log.d(TAG, "Appointment deleted completely from all locations");
+                        onSuccess.run();
+                    } else {
+                        Log.e(TAG, "Failed to delete appointment from some locations: " + errorMessages.toString());
+                        onFailure.accept("Failed to delete from some locations: " + errorMessages.toString());
+                    }
+                });
     }
 
     public static void addReminderToUser(@NonNull String userId, @NonNull String reminderId, Map<String, Object> reminderData) {

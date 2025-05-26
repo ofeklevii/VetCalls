@@ -1,190 +1,645 @@
 package com.example.vetcalls.usersFragment;
 
-import android.Manifest;
-import android.app.TimePickerDialog;
-import android.content.pm.PackageManager;
-import android.os.Build;
+import static com.example.vetcalls.obj.FirestoreUserHelper.deleteAppointment;
+
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.icu.util.Calendar;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Spinner;
-import android.widget.TimePicker;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 
 import com.example.vetcalls.R;
-import com.example.vetcalls.notification.NotificationHelper;
+import com.example.vetcalls.obj.NotificationHelper;
+import com.example.vetcalls.obj.FirestoreUserHelper;
+import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.QueryDocumentSnapshot;
 
-import java.util.Calendar;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
 
 public class AddAppointmentFragment extends Fragment {
-    private EditText editTitle, editTime;
-    private Spinner alertSpinner1, alertSpinner2;
-    private Button btnSave;
-    private String selectedDate;
-    private String dogId;
-    private NotificationHelper notification;
 
-    private String[] alertOptions = {"None", "During Event", "5 minutes before", "10 minutes before",
-            "30 minutes before", "1 hour before", "2 hours before",
-            "1 day before", "2 days before", "1 week before"};
+    private static final String TAG = "AddAppointmentFragment";
+    private FirebaseFirestore db;
+
+    // UI Components
+    private TextView dateTextView;
+    private Spinner appointmentTypeSpinner, dogSpinner, vetSpinner, reminder1Spinner, reminder2Spinner;
+    private EditText notesEditText;
+    private Button timeButton, saveButton;
+
+    // Data variables
+    private String selectedDate, selectedDogId, selectedVetId, appointmentId, userId;
+    private String selectedTime = "", endTime, appointmentType;
+    private boolean isVet, isEdit = false;
+    private long appointmentDurationMinutes = 20;
+    private NotificationHelper notificationHelper;
 
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        View view = inflater.inflate(R.layout.fragment_add_appointment, container, false);
+        return inflater.inflate(R.layout.fragment_add_appointment, container, false);
+    }
 
-        notification = new NotificationHelper(requireContext());
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
 
-        editTitle = view.findViewById(R.id.editTitle);
-        editTime = view.findViewById(R.id.editTime);
-        alertSpinner1 = view.findViewById(R.id.alertSpinner1);
-        alertSpinner2 = view.findViewById(R.id.alertSpinner2);
-        btnSave = view.findViewById(R.id.btnSave);
+        initViews(view);
+        initData();
+        setupArguments();
+        setupSpinners();
+        setupListeners();
 
+        if (isEdit && !appointmentId.isEmpty()) {
+            loadAppointmentDataFromArguments();
+        }
+    }
+
+    private void initViews(View view) {
+        dateTextView = view.findViewById(R.id.dateTextView);
+        appointmentTypeSpinner = view.findViewById(R.id.appointmentTypeSpinner);
+        dogSpinner = view.findViewById(R.id.dogSpinner);
+        vetSpinner = view.findViewById(R.id.vetSpinner);
+        notesEditText = view.findViewById(R.id.notesEditText);
+        timeButton = view.findViewById(R.id.timeButton);
+        reminder1Spinner = view.findViewById(R.id.reminder1Spinner);
+        reminder2Spinner = view.findViewById(R.id.reminder2Spinner);
+        saveButton = view.findViewById(R.id.saveButton);
+        Button deleteButton = view.findViewById(R.id.deleteButton);
+
+        // הסתרת רכיבים בהתחלה
+        timeButton.setVisibility(View.GONE);
+        view.findViewById(R.id.timeLabel).setVisibility(View.GONE);
+        view.findViewById(R.id.userMessageTextView).setVisibility(View.GONE);
+
+        // הצגת כפתור מחיקה רק במצב עריכה
+        if (isEdit && !appointmentId.isEmpty()) {
+            deleteButton.setVisibility(View.VISIBLE);
+            ((TextView) view.findViewById(R.id.titleTextView)).setText("Editing an appointment");
+        }
+    }
+
+    private void initData() {
+        db = FirebaseFirestore.getInstance();
+        userId = FirebaseAuth.getInstance().getCurrentUser().getUid();
+        notificationHelper = new NotificationHelper(requireContext());
+
+        SharedPreferences prefs = requireActivity().getSharedPreferences("UserProfile", Context.MODE_PRIVATE);
+        isVet = prefs.getBoolean("isVet", false);
+    }
+
+    private void setupArguments() {
         if (getArguments() != null) {
-            selectedDate = getArguments().getString("selectedDate");
-            dogId = getArguments().getString("dogId"); // 👈 Make sure dogId is passed when this fragment is opened
+            selectedDate = getArguments().getString("selectedDate", "");
+            isEdit = getArguments().getBoolean("isEdit", false);
+            appointmentId = getArguments().getString("appointmentId", "");
+            dateTextView.setText("Date: " + selectedDate);
         }
-
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_dropdown_item, alertOptions);
-        alertSpinner1.setAdapter(adapter);
-        alertSpinner2.setAdapter(adapter);
-
-        editTime.setOnClickListener(v -> showTimePicker());
-        btnSave.setOnClickListener(v -> saveReminder());
-
-        requestNotificationPermission();
-        return view;
     }
 
-    private void showTimePicker() {
-        Calendar calendar = Calendar.getInstance();
-        int hour = calendar.get(Calendar.HOUR_OF_DAY);
-        int minute = calendar.get(Calendar.MINUTE);
-
-        TimePickerDialog timePickerDialog = new TimePickerDialog(getContext(), (TimePicker view, int selectedHour, int selectedMinute) -> {
-            editTime.setText(String.format("%02d:%02d", selectedHour, selectedMinute));
-        }, hour, minute, true);
-
-        timePickerDialog.show();
+    private void setupSpinners() {
+        setupAppointmentTypeSpinner();
+        setupReminderSpinners();
+        loadDogs();
+        loadVets();
     }
 
-    private void saveReminder() {
-        String title = editTitle.getText().toString().trim();
-        String time = editTime.getText().toString().trim();
+    private void setupListeners() {
+        appointmentTypeSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                appointmentType = parent.getItemAtPosition(position).toString();
+                updateAppointmentDuration(appointmentType);
+                updateTimeSpinnerVisibility();
+            }
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {}
+        });
 
-        if (title.isEmpty() || time.isEmpty()) {
-            Toast.makeText(requireContext(), "Please enter title and time", Toast.LENGTH_SHORT).show();
-            return;
-        }
+        dogSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                DogItem selectedDog = (DogItem) parent.getItemAtPosition(position);
+                selectedDogId = selectedDog.getId();
+                updateTimeSpinnerVisibility();
+            }
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {}
+        });
 
-        if (!time.contains(":")) {
-            Toast.makeText(requireContext(), "Invalid time format", Toast.LENGTH_SHORT).show();
-            return;
-        }
+        vetSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                VetItem selectedVet = (VetItem) parent.getItemAtPosition(position);
+                selectedVetId = selectedVet.getId();
+                updateTimeSpinnerVisibility();
+            }
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {}
+        });
 
-        String[] timeParts = time.split(":");
-        int hour = Integer.parseInt(timeParts[0]);
-        int minute = Integer.parseInt(timeParts[1]);
+        // כפתור בחירת שעה
+        timeButton.setOnClickListener(v -> {
+            Calendar calendar = Calendar.getInstance();
+            new android.app.TimePickerDialog(getContext(),
+                    (view1, hourOfDay, minute1) -> {
+                        selectedTime = String.format(Locale.getDefault(), "%02d:%02d", hourOfDay, minute1);
+                        timeButton.setText(selectedTime);
+                    }, calendar.get(Calendar.HOUR_OF_DAY), calendar.get(Calendar.MINUTE), true).show();
+        });
 
-        if (hour < 0 || minute < 0 || hour > 23 || minute > 59) {
-            Toast.makeText(requireContext(), "Invalid time input", Toast.LENGTH_SHORT).show();
-            return;
-        }
+        // כפתור שמירה
+        saveButton.setOnClickListener(v -> saveAppointment());
 
-        Calendar calendar = Calendar.getInstance();
-        calendar.set(Calendar.HOUR_OF_DAY, hour);
-        calendar.set(Calendar.MINUTE, minute);
-        calendar.set(Calendar.SECOND, 0);
-        long reminderTimeMillis = calendar.getTimeInMillis();
-
-        if (reminderTimeMillis <= System.currentTimeMillis()) {
-            Toast.makeText(requireContext(), "Selected time is in the past. Choose a future time.", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        if (notification == null) {
-            notification = new NotificationHelper(requireContext());
-        }
-
-        notification.scheduleNotification(requireContext(), title, "Reminder for " + selectedDate, reminderTimeMillis);
-        Toast.makeText(requireContext(), "Reminder Saved!", Toast.LENGTH_SHORT).show();
-
-        // 🔥 Save to Firestore (based on whether it's vet or patient)
-        saveToFirestore(title, selectedDate, time);
-
-        returnToCalendar();
+        // כפתור מחיקה
+        requireView().findViewById(R.id.deleteButton).setOnClickListener(v -> {
+            if (isEdit && appointmentId != null && !appointmentId.isEmpty()) {
+                new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                        .setTitle("Delete appointment")
+                        .setMessage("Are you sure you want to delete this appointment?")
+                        .setPositiveButton("Yes", (dialog, which) -> {
+                            FirestoreUserHelper.deleteAppointmentCompletely(
+                                    appointmentId,
+                                    selectedDogId,
+                                    selectedVetId,
+                                    // הצלחה
+                                    () -> {
+                                        Toast.makeText(requireContext(), "Appointment deleted successfully", Toast.LENGTH_SHORT).show();
+                                        requireActivity().getSupportFragmentManager().popBackStack();
+                                    },
+                                    // שגיאה
+                                    (errorMessage) -> {
+                                        Log.e(TAG, "Error deleting appointment: " + errorMessage);
+                                        Toast.makeText(requireContext(), "Error: " + errorMessage, Toast.LENGTH_LONG).show();
+                                    }
+                            );
+                        })
+                        .setNegativeButton("No", null)
+                        .show();
+            }
+        });
     }
 
-    private void requestNotificationPermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 101);
+    private void loadAppointmentDataFromArguments() {
+        if (getArguments() != null) {
+            selectedDogId = getArguments().getString("selectedDogId", "");
+            selectedVetId = getArguments().getString("selectedVetId", "");
+
+            if (!selectedDogId.isEmpty() && !appointmentId.isEmpty()) {
+                loadAppointmentDataFromFirestore();
             }
         }
     }
 
-    private void returnToCalendar() {
+    private void loadAppointmentDataFromFirestore() {
+        db.collection("DogProfiles")
+                .document(selectedDogId)
+                .collection("Appointments")
+                .document(appointmentId)
+                .get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    if (documentSnapshot.exists()) {
+                        Map<String, Object> data = documentSnapshot.getData();
+                        if (data != null) {
+                            setSpinnerSelection(appointmentTypeSpinner, (String) data.get("type"));
+                            notesEditText.setText((String) data.get("notes"));
+
+                            String startTime = (String) data.get("startTime");
+                            if (startTime != null) {
+                                selectedTime = startTime;
+                                timeButton.setText(selectedTime);
+                            }
+
+                            updateDogSpinnerSelection(selectedDogId);
+                            updateVetSpinnerSelection(selectedVetId);
+                            updateTimeSpinnerVisibility();
+                        }
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Error loading appointment", e);
+                    Toast.makeText(requireContext(), "Error loading appointment data", Toast.LENGTH_SHORT).show();
+                });
+    }
+
+    private void updateDogSpinnerSelection(String dogId) {
+        ArrayAdapter<DogItem> adapter = (ArrayAdapter<DogItem>) dogSpinner.getAdapter();
+        if (adapter != null) {
+            for (int i = 0; i < adapter.getCount(); i++) {
+                DogItem item = adapter.getItem(i);
+                if (item != null && item.getId().equals(dogId)) {
+                    dogSpinner.setSelection(i);
+                    break;
+                }
+            }
+        }
+    }
+
+    private void updateVetSpinnerSelection(String vetId) {
+        if (!isVet) {
+            ArrayAdapter<VetItem> adapter = (ArrayAdapter<VetItem>) vetSpinner.getAdapter();
+            if (adapter != null) {
+                for (int i = 0; i < adapter.getCount(); i++) {
+                    VetItem item = adapter.getItem(i);
+                    if (item != null && item.getId().equals(vetId)) {
+                        vetSpinner.setSelection(i);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    private void saveAppointment() {
+        if (!validateInputs()) return;
+
+        if (isEdit && !appointmentId.isEmpty()) {
+            checkIfTimeChangedAndValidate();
+        } else {
+            proceedWithSave();
+        }
+    }
+
+    private boolean validateInputs() {
+        if (selectedDogId == null || selectedDogId.isEmpty()) {
+            Toast.makeText(requireContext(), "You have to choose a dog", Toast.LENGTH_SHORT).show();
+            return false;
+        }
+        if (selectedVetId == null || selectedVetId.isEmpty()) {
+            Toast.makeText(requireContext(), "You have to choose a veterinarian", Toast.LENGTH_SHORT).show();
+            return false;
+        }
+        if (selectedTime == null || selectedTime.isEmpty()) {
+            Toast.makeText(requireContext(), "You have to choose a time", Toast.LENGTH_SHORT).show();
+            return false;
+        }
+        if (appointmentType == null || appointmentType.isEmpty()) {
+            Toast.makeText(requireContext(), "You must select an appointment type", Toast.LENGTH_SHORT).show();
+            return false;
+        }
+        return true;
+    }
+
+    private void checkIfTimeChangedAndValidate() {
+        db.collection("DogProfiles")
+                .document(selectedDogId)
+                .collection("Appointments")
+                .document(appointmentId)
+                .get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    if (documentSnapshot.exists()) {
+                        Map<String, Object> originalData = documentSnapshot.getData();
+                        if (originalData != null) {
+                            String originalDate = (String) originalData.get("date");
+                            String originalTime = (String) originalData.get("startTime");
+
+                            boolean dateChanged = !selectedDate.equals(originalDate);
+                            boolean timeChanged = !selectedTime.equals(originalTime);
+
+                            if (dateChanged || timeChanged) {
+                                validateNewTimeAndSave();
+                            } else {
+                                proceedWithSave();
+                            }
+                        }
+                    } else {
+                        proceedWithSave();
+                    }
+                })
+                .addOnFailureListener(e -> proceedWithSave());
+    }
+
+    private void validateNewTimeAndSave() {
+        db.collection("Veterinarians")
+                .document(selectedVetId)
+                .collection("Appointments")
+                .whereEqualTo("date", selectedDate)
+                .get()
+                .addOnSuccessListener(querySnapshots -> {
+                    boolean timeAvailable = true;
+                    String conflictMessage = "";
+
+                    for (QueryDocumentSnapshot document : querySnapshots) {
+                        if (document.getId().equals(appointmentId)) continue;
+
+                        Map<String, Object> data = document.getData();
+                        String existingStart = (String) data.get("startTime");
+                        String existingEnd = (String) data.get("endTime");
+
+                        if (existingStart != null && existingEnd != null) {
+                            int existingStartMin = convertTimeToMinutes(existingStart);
+                            int existingEndMin = convertTimeToMinutes(existingEnd);
+                            int newStartMin = convertTimeToMinutes(selectedTime);
+                            int newEndMin = newStartMin + (int) appointmentDurationMinutes;
+
+                            if ((newStartMin >= existingStartMin && newStartMin < existingEndMin) ||
+                                    (newEndMin > existingStartMin && newEndMin <= existingEndMin) ||
+                                    (newStartMin <= existingStartMin && newEndMin >= existingEndMin)) {
+                                timeAvailable = false;
+                                conflictMessage = "Time conflicts with existing appointment: " + existingStart + " - " + existingEnd;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (timeAvailable) {
+                        proceedWithSave();
+                    } else {
+                        Toast.makeText(requireContext(), conflictMessage, Toast.LENGTH_LONG).show();
+                    }
+                });
+    }
+
+    private void proceedWithSave() {
+        calculateEndTime();
+
+        if (!isEdit || appointmentId.isEmpty()) {
+            appointmentId = UUID.randomUUID().toString();
+        }
+
+        Map<String, Object> appointmentData = createAppointmentData();
+        addReminders(appointmentData);
+
+        FirestoreUserHelper.addAppointment(appointmentId, appointmentData);
+        Toast.makeText(requireContext(), isEdit ? "Appointment updated successfully" : "Appointment created successfully", Toast.LENGTH_SHORT).show();
         requireActivity().getSupportFragmentManager().popBackStack();
     }
 
-    private void saveToFirestore(String title, String date, String time) {
-        FirebaseFirestore db = FirebaseFirestore.getInstance();
-        FirebaseAuth auth = FirebaseAuth.getInstance();
-        String userEmail = auth.getCurrentUser() != null ? auth.getCurrentUser().getEmail() : null;
-
-        boolean isVet = userEmail != null && userEmail.contains("vet"); // You can change this logic
-
+    private Map<String, Object> createAppointmentData() {
         Map<String, Object> data = new HashMap<>();
-        data.put("title", title);
-        data.put("date", date);
-        data.put("time", time);
-        data.put("details", title);
-        data.put("dogId", dogId);
-        data.put("timestamp", FieldValue.serverTimestamp());
+        data.put("id", appointmentId);
+        data.put("date", selectedDate);
+        data.put("startTime", selectedTime);
+        data.put("endTime", endTime);
+        data.put("type", appointmentType);
+        data.put("dogId", selectedDogId);
+        data.put("vetId", selectedVetId);
+        data.put("ownerId", userId);
+        data.put("notes", notesEditText.getText().toString());
+        data.put("completed", false);
+
+        // Add dog and vet names
+        if (dogSpinner.getSelectedItem() instanceof DogItem) {
+            data.put("dogName", ((DogItem) dogSpinner.getSelectedItem()).getName());
+        }
 
         if (isVet) {
-            data.put("type", "Appointment");
-            data.put("vetEmail", userEmail);
-
-            // Save under vet's calendar
-            db.collection("Vets")
-                    .document(userEmail)
-                    .collection("Appointments")
-                    .add(data);
-
-            // Save under global "Appointments"
-            db.collection("Appointments")
-                    .add(data);
-
-            // Save under the dog's profile
-            db.collection("DogProfiles")
-                    .document(dogId)
-                    .collection("Appointments")
-                    .add(data);
-        } else {
-            data.put("type", "Reminder");
-
-            // Save only under the dog's profile (private to patient)
-            db.collection("DogProfiles")
-                    .document(dogId)
-                    .collection("Reminders")
-                    .add(data);
+            data.put("vetName", "Dr. " + FirebaseAuth.getInstance().getCurrentUser().getEmail().split("@")[0]);
+        } else if (vetSpinner.getSelectedItem() instanceof VetItem) {
+            data.put("vetName", ((VetItem) vetSpinner.getSelectedItem()).getName());
         }
+
+        return data;
+    }
+
+    private void addReminders(Map<String, Object> appointmentData) {
+        if (isVet) return; // וטרינרים לא מקבלים תזכורות
+
+        String reminder1 = reminder1Spinner.getSelectedItem().toString();
+        String reminder2 = reminder2Spinner.getSelectedItem().toString();
+
+        if (!reminder1.equals("No reminder") || !reminder2.equals("No reminder")) {
+            try {
+                SimpleDateFormat format = new SimpleDateFormat("yyyy-M-d HH:mm", Locale.getDefault());
+                Date appointmentDateTime = format.parse(selectedDate + " " + selectedTime);
+                long appointmentTime = appointmentDateTime.getTime();
+
+                if (!reminder1.equals("No reminder")) {
+                    createReminder(reminder1, appointmentTime);
+                }
+                if (!reminder2.equals("No reminder")) {
+                    createReminder(reminder2, appointmentTime);
+                }
+            } catch (ParseException e) {
+                Log.e(TAG, "Error parsing date/time", e);
+            }
+        }
+    }
+
+    private void createReminder(String reminderOption, long appointmentTime) {
+        long reminderTime = getReminderTime(reminderOption, appointmentTime);
+
+        notificationHelper.scheduleNotification(
+                requireContext(),
+                "Reminder: " + appointmentType,
+                "You have an appointment on " + selectedDate + " at " + selectedTime,
+                reminderTime
+        );
+
+        Map<String, Object> reminderData = new HashMap<>();
+        reminderData.put("id", UUID.randomUUID().toString());
+        reminderData.put("title", "Reminder: " + appointmentType);
+        reminderData.put("description", "You have an appointment on " + selectedDate + " at " + selectedTime);
+        reminderData.put("time", new Timestamp(new Date(reminderTime)));
+        reminderData.put("appointmentId", appointmentId);
+
+        FirestoreUserHelper.addReminderToUser(userId, (String) reminderData.get("id"), reminderData);
+    }
+
+    // Helper methods
+    private void calculateEndTime() {
+        if (selectedTime != null && !selectedTime.isEmpty()) {
+            int startMinutes = convertTimeToMinutes(selectedTime);
+            int endMinutes = startMinutes + (int) appointmentDurationMinutes;
+            endTime = convertMinutesToTime(endMinutes);
+        }
+    }
+
+    private int convertTimeToMinutes(String time) {
+        String[] parts = time.split(":");
+        return Integer.parseInt(parts[0]) * 60 + Integer.parseInt(parts[1]);
+    }
+
+    private String convertMinutesToTime(int minutes) {
+        int hours = minutes / 60;
+        int mins = minutes % 60;
+        return String.format(Locale.getDefault(), "%02d:%02d", hours, mins);
+    }
+
+    private void updateAppointmentDuration(String type) {
+        switch (type) {
+            case "Vaccination and blood tests": appointmentDurationMinutes = 20; break;
+            case "Routine tests": appointmentDurationMinutes = 60; break;
+            case "Surgery": appointmentDurationMinutes = 180; break;
+            case "Urgent treatment": appointmentDurationMinutes = 60; break;
+            default: appointmentDurationMinutes = 20;
+        }
+    }
+
+    private void updateTimeSpinnerVisibility() {
+        TextView timeLabel = requireView().findViewById(R.id.timeLabel);
+        TextView messageView = requireView().findViewById(R.id.userMessageTextView);
+
+        boolean dogSelected = selectedDogId != null && !selectedDogId.isEmpty();
+        boolean vetSelected = selectedVetId != null && !selectedVetId.isEmpty();
+
+        if (dogSelected && vetSelected) {
+            timeButton.setVisibility(View.VISIBLE);
+            timeLabel.setVisibility(View.VISIBLE);
+            messageView.setVisibility(View.GONE);
+        } else {
+            timeButton.setVisibility(View.GONE);
+            timeLabel.setVisibility(View.GONE);
+            messageView.setVisibility(View.VISIBLE);
+            messageView.setText("Please select both a dog and a veterinarian");
+        }
+    }
+
+    private void setupAppointmentTypeSpinner() {
+        String[] types = {"Vaccination and blood tests", "Routine tests", "Surgery", "Urgent treatment"};
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_item, types);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        appointmentTypeSpinner.setAdapter(adapter);
+    }
+
+    private void setupReminderSpinners() {
+        String[] options = {"No reminder", "At appointment time", "5 minutes before", "10 minutes before",
+                "15 minutes before", "30 minutes before", "1 hour before", "2 hours before",
+                "1 day before", "2 days before", "1 week before"};
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_item, options);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        reminder1Spinner.setAdapter(adapter);
+        reminder2Spinner.setAdapter(adapter);
+    }
+
+    private void loadDogs() {
+        ArrayList<DogItem> dogs = new ArrayList<>();
+        dogs.add(new DogItem("", "Choose a dog..."));
+
+        if (isVet) {
+            db.collection("DogProfiles")
+                    .whereEqualTo("vetId", userId)
+                    .get()
+                    .addOnSuccessListener(snapshots -> {
+                        for (QueryDocumentSnapshot doc : snapshots) {
+                            Map<String, Object> data = doc.getData();
+                            String dogId = doc.getId();
+                            String dogName = (String) data.get("name");
+                            String ownerId = (String) data.get("ownerId");
+                            dogs.add(new DogItem(dogId, dogName + " (Owner: " + ownerId + ")"));
+                        }
+                        setDogAdapter(dogs);
+                    });
+        } else {
+            db.collection("Users")
+                    .document(userId)
+                    .collection("Dogs")
+                    .get()
+                    .addOnSuccessListener(snapshots -> {
+                        for (QueryDocumentSnapshot doc : snapshots) {
+                            Map<String, Object> data = doc.getData();
+                            String dogId = (String) data.get("dogId");
+                            String dogName = (String) data.get("name");
+                            if (dogId != null && dogName != null) {
+                                dogs.add(new DogItem(dogId, dogName));
+                            }
+                        }
+                        setDogAdapter(dogs);
+
+                        if (dogs.size() == 2) {
+                            dogSpinner.setSelection(1);
+                            selectedDogId = dogs.get(1).getId();
+                        }
+                    });
+        }
+    }
+
+    private void setDogAdapter(ArrayList<DogItem> dogs) {
+        ArrayAdapter<DogItem> adapter = new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_item, dogs);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        dogSpinner.setAdapter(adapter);
+    }
+
+    private void loadVets() {
+        if (isVet) {
+            vetSpinner.setVisibility(View.GONE);
+            requireView().findViewById(R.id.vetLabel).setVisibility(View.GONE);
+            selectedVetId = userId;
+        } else {
+            ArrayList<VetItem> vets = new ArrayList<>();
+            vets.add(new VetItem("", "Choose a vet..."));
+
+            db.collection("Veterinarians")
+                    .get()
+                    .addOnSuccessListener(snapshots -> {
+                        for (QueryDocumentSnapshot doc : snapshots) {
+                            Map<String, Object> data = doc.getData();
+                            String vetId = doc.getId();
+                            String name = (String) data.get("fullName");
+                            vets.add(new VetItem(vetId, name != null ? name : "Veterinarian"));
+                        }
+
+                        ArrayAdapter<VetItem> adapter = new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_item, vets);
+                        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                        vetSpinner.setAdapter(adapter);
+                    });
+        }
+    }
+
+    private void setSpinnerSelection(Spinner spinner, String value) {
+        if (value == null) return;
+        ArrayAdapter adapter = (ArrayAdapter) spinner.getAdapter();
+        for (int i = 0; i < adapter.getCount(); i++) {
+            if (adapter.getItem(i).toString().equals(value)) {
+                spinner.setSelection(i);
+                break;
+            }
+        }
+    }
+
+    private long getReminderTime(String option, long appointmentTime) {
+        switch (option) {
+            case "At appointment time": return appointmentTime;
+            case "5 minutes before": return appointmentTime - (5 * 60 * 1000);
+            case "10 minutes before": return appointmentTime - (10 * 60 * 1000);
+            case "15 minutes before": return appointmentTime - (15 * 60 * 1000);
+            case "30 minutes before": return appointmentTime - (30 * 60 * 1000);
+            case "1 hour before": return appointmentTime - (60 * 60 * 1000);
+            case "2 hours before": return appointmentTime - (2 * 60 * 60 * 1000);
+            case "1 day before": return appointmentTime - (24 * 60 * 60 * 1000);
+            case "2 days before": return appointmentTime - (2 * 24 * 60 * 60 * 1000);
+            case "1 week before": return appointmentTime - (7 * 24 * 60 * 60 * 1000);
+            default: return 0;
+        }
+    }
+
+    // Helper classes
+    public static class DogItem {
+        private String id, name;
+        public DogItem(String id, String name) { this.id = id; this.name = name; }
+        public String getId() { return id; }
+        public String getName() { return name; }
+        @Override public String toString() { return name; }
+    }
+
+    public static class VetItem {
+        private String id, name;
+        public VetItem(String id, String name) { this.id = id; this.name = name; }
+        public String getId() { return id; }
+        public String getName() { return name; }
+        @Override public String toString() { return name; }
     }
 }
