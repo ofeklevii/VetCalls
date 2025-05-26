@@ -276,13 +276,13 @@ public class ChatMessageFragment extends Fragment {
 
                     db.collection("Notifications")
                             .add(notificationData)
-                            .addOnSuccessListener(documentReference -> 
-                                Log.d(TAG, "התראה נשלחה בהצלחה"))
-                            .addOnFailureListener(e -> 
-                                Log.e(TAG, "שגיאה בשליחת התראה", e));
+                            .addOnSuccessListener(documentReference ->
+                                    Log.d(TAG, "התראה נשלחה בהצלחה"))
+                            .addOnFailureListener(e ->
+                                    Log.e(TAG, "שגיאה בשליחת התראה", e));
                 })
-                .addOnFailureListener(e -> 
-                    Log.e(TAG, "שגיאה בקבלת פרטי צ'אט", e));
+                .addOnFailureListener(e ->
+                        Log.e(TAG, "שגיאה בקבלת פרטי צ'אט", e));
     }
 
     private void showAttachmentOptions() {
@@ -362,29 +362,29 @@ public class ChatMessageFragment extends Fragment {
         StorageReference storageRef = FirebaseStorage.getInstance().getReference().child(path);
 
         storageRef.putFile(selectedMediaUri)
-            .addOnSuccessListener(taskSnapshot -> storageRef.getDownloadUrl().addOnSuccessListener(uri -> {
-                // יצירת הודעה עם קישור למדיה
-                Message message = new Message(
-                    currentUserId,
-                    new Date(),
-                    selectedMediaType,
-                    uri.toString()
-                );
-                db.collection("Chats").document(chatId)
-                    .collection("Messages")
-                    .add(message)
-                    .addOnSuccessListener(documentReference -> {
-                        // ניקוי תצוגה מקדימה
-                        selectedMediaUri = null;
-                        selectedMediaType = null;
-                        mediaPreviewLayout.setVisibility(View.GONE);
-                        imagePreview.setVisibility(View.GONE);
-                        videoPreview.setVisibility(View.GONE);
-                        closeMediaButton.setVisibility(View.GONE);
-                    });
-            }))
-            .addOnFailureListener(e -> {
-                Toast.makeText(getContext(), "שגיאה בשליחת מדיה", Toast.LENGTH_SHORT).show();
-            });
+                .addOnSuccessListener(taskSnapshot -> storageRef.getDownloadUrl().addOnSuccessListener(uri -> {
+                    // יצירת הודעה עם קישור למדיה
+                    Message message = new Message(
+                            currentUserId,
+                            new Date(),
+                            selectedMediaType,
+                            uri.toString()
+                    );
+                    db.collection("Chats").document(chatId)
+                            .collection("Messages")
+                            .add(message)
+                            .addOnSuccessListener(documentReference -> {
+                                // ניקוי תצוגה מקדימה
+                                selectedMediaUri = null;
+                                selectedMediaType = null;
+                                mediaPreviewLayout.setVisibility(View.GONE);
+                                imagePreview.setVisibility(View.GONE);
+                                videoPreview.setVisibility(View.GONE);
+                                closeMediaButton.setVisibility(View.GONE);
+                            });
+                }))
+                .addOnFailureListener(e -> {
+                    Toast.makeText(getContext(), "שגיאה בשליחת מדיה", Toast.LENGTH_SHORT).show();
+                });
     }
 }

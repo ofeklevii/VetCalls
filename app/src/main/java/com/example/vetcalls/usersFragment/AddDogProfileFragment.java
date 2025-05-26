@@ -154,13 +154,13 @@ public class AddDogProfileFragment extends Fragment {
         String vaccines = editVaccines.getText().toString().trim();
 
         if (name.isEmpty() || race.isEmpty() || birthday.isEmpty() || weight.isEmpty()) {
-            Toast.makeText(requireContext(), "Please fill all required fields", Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), "Please fill all required fields (Name, Birthday, Weight, Race)", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // Check if vet is selected
-        if (selectedVetId == null || selectedVetName == null) {
-            Toast.makeText(requireContext(), "Please select a vet to continue", Toast.LENGTH_SHORT).show();
+        // בדיקה אם וטרינר נבחר (שדה חובה)
+        if (selectedVetId == null || selectedVetName == null || selectedVetId.isEmpty() || selectedVetName.isEmpty()) {
+            Toast.makeText(requireContext(), "Please select a veterinarian to continue", Toast.LENGTH_SHORT).show();
             return;
         }
 

@@ -6,7 +6,6 @@
     android:layout_height="match_parent"
     android:padding="16dp">
 
-    <!-- Scrollable Content -->
     <ScrollView
         android:id="@+id/scrollView"
         android:layout_width="0dp"
@@ -21,7 +20,6 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <!-- Profile Picture -->
             <ImageView
                 android:id="@+id/editProfilePic"
                 android:layout_width="120dp"
@@ -44,7 +42,6 @@
                 android:backgroundTint="#29B6F6"
                 android:layout_marginBottom="16dp" />
 
-            <!-- Name -->
             <EditText
                 android:id="@+id/editName"
                 android:layout_width="match_parent"
@@ -54,7 +51,6 @@
                 android:inputType="textPersonName"
                 android:layout_marginBottom="16dp" />
 
-            <!-- Birthday -->
             <EditText
                 android:id="@+id/editBirthday"
                 android:layout_width="match_parent"
@@ -64,7 +60,6 @@
                 android:inputType="date"
                 android:layout_marginBottom="16dp" />
 
-            <!-- Weight -->
             <EditText
                 android:id="@+id/editWeight"
                 android:layout_width="match_parent"
@@ -74,8 +69,6 @@
                 android:inputType="numberDecimal"
                 android:layout_marginBottom="16dp" />
 
-
-            <!-- Race -->
             <EditText
                 android:id="@+id/editRace"
                 android:layout_width="match_parent"
@@ -85,7 +78,6 @@
                 android:inputType="text"
                 android:layout_marginBottom="16dp" />
 
-            <!-- Allergies -->
             <EditText
                 android:id="@+id/editAllergies"
                 android:layout_width="match_parent"
@@ -95,7 +87,6 @@
                 android:inputType="text"
                 android:layout_marginBottom="16dp" />
 
-            <!-- Vaccines -->
             <EditText
                 android:id="@+id/editVaccines"
                 android:layout_width="match_parent"
@@ -115,40 +106,19 @@
                 android:textStyle="bold"
                 android:layout_marginBottom="8dp" />
 
-            <TextView
-                android:id="@+id/currentVetText"
+            <Spinner
+                android:id="@+id/vetSpinner"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="הווטרינר הנוכחי: אין"
-                android:layout_marginBottom="8dp" />
-
-            <Button
-                android:id="@+id/selectVetButton"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="בחר וטרינר"
-                android:textColor="#FFFFFF"
-                android:backgroundTint="#29B6F6"
+                android:background="@drawable/common_google_signin_btn_icon_light_normal_background"
                 android:layout_marginBottom="16dp" />
 
-            <!-- Optional: Display when next change is available -->
-            <TextView
-                android:id="@+id/nextVetChangeText"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="תוכל לשנות את הווטרינר שלך שוב בתאריך: לא נקבע"
-                android:textStyle="italic"
-                android:visibility="gone"
-                android:layout_marginBottom="16dp" />
-
-            <!-- Buttons in horizontal row -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:layout_marginBottom="16dp">
 
-                <!-- Cancel Button -->
                 <Button
                     android:id="@+id/cancelButton"
                     android:layout_width="0dp"
@@ -160,13 +130,12 @@
                     android:elevation="4dp"
                     android:layout_marginEnd="8dp" />
 
-                <!-- Save Button -->
                 <Button
                     android:id="@+id/saveButton"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Save Changes"
+                    android:text="Add new dog"
                     android:textColor="#FFFFFF"
                     android:backgroundTint="#29B6F6"
                     android:elevation="4dp"
@@ -174,5 +143,4 @@
             </LinearLayout>
         </LinearLayout>
     </ScrollView>
-
 </androidx.constraintlayout.widget.ConstraintLayout>

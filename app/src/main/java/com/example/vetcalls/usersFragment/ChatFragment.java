@@ -21,6 +21,7 @@ import com.example.vetcalls.obj.DogProfile;
 import com.example.vetcalls.obj.Veterinarian;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.*;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import java.util.*;
 import java.util.Map;
@@ -29,7 +30,7 @@ public class ChatFragment extends Fragment {
 
     private static final String TAG = "ChatFragment";
     private RecyclerView recyclerView;
-    private Button startChatButton;
+    private FloatingActionButton startChatFab;
     private FirebaseFirestore db;
     private FirebaseAuth auth;
     private ChatPreviewAdapter adapter;
@@ -73,14 +74,14 @@ public class ChatFragment extends Fragment {
         View view = inflater.inflate(R.layout.fragment_chat, container, false);
 
         recyclerView = view.findViewById(R.id.recyclerViewChats);
-        startChatButton = view.findViewById(R.id.startChatButton);
+        startChatFab = view.findViewById(R.id.startChatFab);
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
 
         // אתחול האדפטר עם רשימת צ'אטים ריקה תחילה
         adapter = new ChatPreviewAdapter(chatList, chat -> openChatFragment(chat));
         recyclerView.setAdapter(adapter);
 
-        startChatButton.setOnClickListener(v -> openNewChatDialog());
+        startChatFab.setOnClickListener(v -> openNewChatDialog());
 
         // טען את רשימת הצ'אטים רק אם אנחנו כבר יודעים את סוג המשתמש
         if (isVet || isVet == false) {
@@ -121,48 +122,43 @@ public class ChatFragment extends Fragment {
         if (currentUserId == null) return;
         Log.d(TAG, "Loading chats for user: " + currentUserId);
         db.collection("Chats")
-            .whereArrayContains("participants", currentUserId)
-            .get()
-            .addOnSuccessListener(querySnapshot -> {
-                chatList.clear();
-                for (DocumentSnapshot doc : querySnapshot.getDocuments()) {
-                    String chatId = doc.getId();
-                    String imageUrl, displayName;
-                    String lastMessage = doc.getString("lastMessage");
-                    Date lastMessageTime = doc.getTimestamp("lastMessageTime") != null ?
-                            doc.getTimestamp("lastMessageTime").toDate() : new Date();
-                    if (isVet) {
-                        displayName = doc.getString("dogName");
-                        imageUrl = doc.getString("dogImageUrl");
-                        if (displayName == null || displayName.isEmpty()) displayName = "כלב";
-                        if (imageUrl == null || imageUrl.isEmpty()) imageUrl = "https://example.com/default_dog_image.png";
-                    } else {
-                        displayName = doc.getString("vetName");
-                        imageUrl = doc.getString("vetImageUrl");
-                        if (displayName == null || displayName.isEmpty()) displayName = "וטרינר";
-                        if (imageUrl == null || imageUrl.isEmpty()) imageUrl = "https://example.com/default_vet_image.png";
+                .whereArrayContains("participants", currentUserId)
+                .get()
+                .addOnSuccessListener(querySnapshot -> {
+                    chatList.clear();
+                    for (DocumentSnapshot doc : querySnapshot.getDocuments()) {
+                        String chatId = doc.getId();
+                        String imageUrl, displayName;
+                        String lastMessage = doc.getString("lastMessage");
+                        Date lastMessageTime = doc.getTimestamp("lastMessageTime") != null ?
+                                doc.getTimestamp("lastMessageTime").toDate() : new Date();
+                        if (isVet) {
+                            displayName = doc.getString("dogName");
+                            imageUrl = doc.getString("dogImageUrl");
+                            if (displayName == null || displayName.isEmpty()) displayName = "כלב";
+                            if (imageUrl == null || imageUrl.isEmpty()) imageUrl = "https://example.com/default_dog_image.png";
+                        } else {
+                            displayName = doc.getString("vetName");
+                            imageUrl = doc.getString("vetImageUrl");
+                            if (displayName == null || displayName.isEmpty()) displayName = "וטרינר";
+                            if (imageUrl == null || imageUrl.isEmpty()) imageUrl = "https://example.com/default_vet_image.png";
+                        }
+                        Log.d(TAG, "ChatPreview: chatId=" + chatId + ", displayName=" + displayName + ", imageUrl=" + imageUrl);
+
+                        ChatPreview chatPreview = new ChatPreview(chatId, displayName, imageUrl, lastMessage, lastMessageTime);
+                        chatList.add(chatPreview);
                     }
-                    Log.d(TAG, "ChatPreview: chatId=" + chatId + ", displayName=" + displayName + ", imageUrl=" + imageUrl);
-                    
-                    ChatPreview chatPreview = new ChatPreview(chatId, displayName, imageUrl, lastMessage, lastMessageTime);
-                    chatList.add(chatPreview);
-                }
-                adapter.notifyDataSetChanged();
-                if (chatList.isEmpty()) {
-                    startChatButton.setVisibility(View.VISIBLE);
-                } else {
-                    startChatButton.setVisibility(View.GONE);
-                }
-            })
-            .addOnFailureListener(e -> {
-                if (e.getMessage() != null && e.getMessage().contains("PERMISSION_DENIED")) {
-                    startChatButton.setVisibility(View.VISIBLE);
-                }
-                Context context = getContext();
-                if (context != null) {
-                    Toast.makeText(context, "אין לך עדיין צ'אטים, צרי שיחה חדשה!", Toast.LENGTH_LONG).show();
-                }
-            });
+                    adapter.notifyDataSetChanged();
+                })
+                .addOnFailureListener(e -> {
+                    if (e.getMessage() != null && e.getMessage().contains("PERMISSION_DENIED")) {
+                        // מטפל במקרה של שגיאה שלא ניתן לקרוא לצ'אטים
+                    }
+                    Context context = getContext();
+                    if (context != null) {
+                        Toast.makeText(context, "אין לך עדיין צ'אטים, צרי שיחה חדשה!", Toast.LENGTH_LONG).show();
+                    }
+                });
     }
 
     private void openNewChatDialog() {
@@ -259,98 +255,98 @@ public class ChatFragment extends Fragment {
 
         // חפש צ'אט קיים עם אותם participants
         db.collection("Chats")
-            .whereArrayContains("participants", currentUserId)
-            .get()
-            .addOnSuccessListener(query -> {
-                for (DocumentSnapshot doc : query.getDocuments()) {
-                    String displayName, imageUrl;
-                    if (isVet) {
-                        displayName = doc.getString("dogName");
-                        imageUrl = doc.getString("dogImageUrl");
-                    } else {
-                        displayName = doc.getString("vetName");
-                        imageUrl = doc.getString("vetImageUrl");
+                .whereArrayContains("participants", currentUserId)
+                .get()
+                .addOnSuccessListener(query -> {
+                    for (DocumentSnapshot doc : query.getDocuments()) {
+                        String displayName, imageUrl;
+                        if (isVet) {
+                            displayName = doc.getString("dogName");
+                            imageUrl = doc.getString("dogImageUrl");
+                        } else {
+                            displayName = doc.getString("vetName");
+                            imageUrl = doc.getString("vetImageUrl");
+                        }
+                        ChatPreview chatPreview = new ChatPreview(doc.getId(), displayName, imageUrl);
+                        openChatFragment(chatPreview);
+                        return;
                     }
-                    ChatPreview chatPreview = new ChatPreview(doc.getId(), displayName, imageUrl);
-                    openChatFragment(chatPreview);
-                    return;
-                }
-                // לא נמצא צ'אט - צור חדש
-                proceedWithChatCreation(currentUserId, selectedName, selectedId);
-            })
-            .addOnFailureListener(e -> {
-                Log.e(TAG, "שגיאה בטעינת צ'אט", e);
-                Context context = getContext();
-                if (context != null) {
-                    Toast.makeText(context, "שגיאה בטעינת צ'אט: " + e.getMessage(), Toast.LENGTH_LONG).show();
-                }
-            });
+                    // לא נמצא צ'אט - צור חדש
+                    proceedWithChatCreation(currentUserId, selectedName, selectedId);
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "שגיאה בטעינת צ'אט", e);
+                    Context context = getContext();
+                    if (context != null) {
+                        Toast.makeText(context, "שגיאה בטעינת צ'אט: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                    }
+                });
     }
 
     private void proceedWithChatCreation(String currentUserId, String selectedName, String selectedId) {
         if (isVet) {
             // שלוף את פרטי הכלב
             db.collection("DogProfiles").document(selectedId).get()
-                .addOnSuccessListener(dogDoc -> {
-                    if (dogDoc.exists()) {
-                        String ownerId = dogDoc.getString("ownerId");
-                        String dogImageUrl = dogDoc.getString("profileImageUrl");
-                        if (dogImageUrl == null || dogImageUrl.isEmpty()) {
-                            dogImageUrl = "https://example.com/default_dog_image.png";
+                    .addOnSuccessListener(dogDoc -> {
+                        if (dogDoc.exists()) {
+                            String ownerId = dogDoc.getString("ownerId");
+                            String dogImageUrl = dogDoc.getString("profileImageUrl");
+                            if (dogImageUrl == null || dogImageUrl.isEmpty()) {
+                                dogImageUrl = "https://example.com/default_dog_image.png";
+                            }
+                            String dogName = dogDoc.getString("name");
+                            if (dogName == null || dogName.isEmpty()) {
+                                dogName = "כלב";
+                            }
+                            String chatId = selectedId + "_" + currentUserId;
+                            saveChatToFirestore(chatId, currentUserId, ownerId, dogName, dogImageUrl);
+                        } else {
+                            Context context = getContext();
+                            if (context != null) {
+                                Toast.makeText(context, "לא נמצא כלב", Toast.LENGTH_SHORT).show();
+                            }
                         }
-                        String dogName = dogDoc.getString("name");
-                        if (dogName == null || dogName.isEmpty()) {
-                            dogName = "כלב";
-                        }
-                        String chatId = selectedId + "_" + currentUserId;
-                        saveChatToFirestore(chatId, currentUserId, ownerId, dogName, dogImageUrl);
-                    } else {
+                    })
+                    .addOnFailureListener(e -> {
+                        Log.e(TAG, "Error loading dog", e);
                         Context context = getContext();
                         if (context != null) {
-                            Toast.makeText(context, "לא נמצא כלב", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(context, "שגיאה בטעינת כלב: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                         }
-                    }
-                })
-                .addOnFailureListener(e -> {
-                    Log.e(TAG, "Error loading dog", e);
-                    Context context = getContext();
-                    if (context != null) {
-                        Toast.makeText(context, "שגיאה בטעינת כלב: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                    }
-                });
+                    });
         } else {
             // שלוף את פרטי הווטרינר
             db.collection("Veterinarians").document(selectedId).get()
-                .addOnSuccessListener(vetDoc -> {
-                    if (vetDoc.exists()) {
-                        Veterinarian vet = vetDoc.toObject(Veterinarian.class);
-                        String vetImageUrl = vet != null ? vet.profileImageUrl : null;
-                        if (vetImageUrl == null || vetImageUrl.isEmpty()) {
-                            vetImageUrl = "https://example.com/default_vet_image.png";
-                        }
-                        String vetName = vet != null ? vet.fullName : null;
-                        if (vetName == null || vetName.isEmpty()) {
-                            vetName = vet != null ? vet.email : null;
+                    .addOnSuccessListener(vetDoc -> {
+                        if (vetDoc.exists()) {
+                            Veterinarian vet = vetDoc.toObject(Veterinarian.class);
+                            String vetImageUrl = vet != null ? vet.profileImageUrl : null;
+                            if (vetImageUrl == null || vetImageUrl.isEmpty()) {
+                                vetImageUrl = "https://example.com/default_vet_image.png";
+                            }
+                            String vetName = vet != null ? vet.fullName : null;
                             if (vetName == null || vetName.isEmpty()) {
-                                vetName = "וטרינר";
+                                vetName = vet != null ? vet.email : null;
+                                if (vetName == null || vetName.isEmpty()) {
+                                    vetName = "וטרינר";
+                                }
+                            }
+                            String chatId = currentUserId + "_" + selectedId;
+                            saveChatToFirestore(chatId, currentUserId, selectedId, vetName, vetImageUrl);
+                        } else {
+                            Context context = getContext();
+                            if (context != null) {
+                                Toast.makeText(context, "לא נמצא וטרינר", Toast.LENGTH_SHORT).show();
                             }
                         }
-                        String chatId = currentUserId + "_" + selectedId;
-                        saveChatToFirestore(chatId, currentUserId, selectedId, vetName, vetImageUrl);
-                    } else {
+                    })
+                    .addOnFailureListener(e -> {
+                        Log.e(TAG, "Error loading veterinarian", e);
                         Context context = getContext();
                         if (context != null) {
-                            Toast.makeText(context, "לא נמצא וטרינר", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(context, "שגיאה בטעינת וטרינר: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                         }
-                    }
-                })
-                .addOnFailureListener(e -> {
-                    Log.e(TAG, "Error loading veterinarian", e);
-                    Context context = getContext();
-                    if (context != null) {
-                        Toast.makeText(context, "שגיאה בטעינת וטרינר: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                    }
-                });
+                    });
         }
     }
 
@@ -420,32 +416,32 @@ public class ChatFragment extends Fragment {
 
         DocumentReference chatRef = db.collection("Chats").document(chatId);
         chatRef.set(data)
-            .addOnSuccessListener(unused -> {
-                Log.d(TAG, "צ'אט חדש נוצר בהצלחה: " + chatId);
-                Context context = getContext();
-                if (context != null) {
-                    Toast.makeText(context, "נוצר צ'אט חדש", Toast.LENGTH_SHORT).show();
-                }
-                // פתיחת הצ'אט החדש
-                String displayName = isVet ? (String) data.get("dogName") : (String) data.get("vetName");
-                String imageUrl = isVet ? (String) data.get("dogImageUrl") : (String) data.get("vetImageUrl");
-                ChatPreview chatPreview = new ChatPreview(chatId, displayName, imageUrl);
-                openChatFragment(chatPreview);
-            })
-            .addOnFailureListener(e -> {
-                Log.e(TAG, "שגיאה ביצירת צ'אט", e);
-                if (e.getMessage() != null && e.getMessage().contains("PERMISSION_DENIED")) {
+                .addOnSuccessListener(unused -> {
+                    Log.d(TAG, "צ'אט חדש נוצר בהצלחה: " + chatId);
                     Context context = getContext();
                     if (context != null) {
-                        Toast.makeText(context, "שגיאה ביצירת צ'אט: אין הרשאות. בדקי את כללי האבטחה של Firestore.", Toast.LENGTH_LONG).show();
+                        Toast.makeText(context, "נוצר צ'אט חדש", Toast.LENGTH_SHORT).show();
                     }
-                } else {
-                    Context context = getContext();
-                    if (context != null) {
-                        Toast.makeText(context, "שגיאה ביצירת צ'אט: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                    // פתיחת הצ'אט החדש
+                    String displayName = isVet ? (String) data.get("dogName") : (String) data.get("vetName");
+                    String imageUrl = isVet ? (String) data.get("dogImageUrl") : (String) data.get("vetImageUrl");
+                    ChatPreview chatPreview = new ChatPreview(chatId, displayName, imageUrl);
+                    openChatFragment(chatPreview);
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "שגיאה ביצירת צ'אט", e);
+                    if (e.getMessage() != null && e.getMessage().contains("PERMISSION_DENIED")) {
+                        Context context = getContext();
+                        if (context != null) {
+                            Toast.makeText(context, "שגיאה ביצירת צ'אט: אין הרשאות. בדקי את כללי האבטחה של Firestore.", Toast.LENGTH_LONG).show();
+                        }
+                    } else {
+                        Context context = getContext();
+                        if (context != null) {
+                            Toast.makeText(context, "שגיאה ביצירת צ'אט: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                        }
                     }
-                }
-            });
+                });
     }
 
     // מתודה לקריאה כאשר המשתמש מתחבר לאתחול קולקשיין הצ'אטים שלו

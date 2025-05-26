@@ -105,7 +105,7 @@ public class EditVetProfileFragment extends Fragment {
         });
 
         view.findViewById(R.id.saveButton).setOnClickListener(v -> saveProfileChanges());
-        view.findViewById(R.id.cancelButton).setOnClickListener(v -> requireActivity().getSupportFragmentManager().popBackStack());
+        view.findViewById(R.id.cancelButton).setOnClickListener(v -> navigateToVetHome());
     }
 
     private boolean checkPermissions() {
@@ -150,6 +150,12 @@ public class EditVetProfileFragment extends Fragment {
                             if (documentSnapshot.exists()) {
                                 Veterinarian vet = documentSnapshot.toObject(Veterinarian.class);
                                 if (vet != null) {
+                                    if (vet.fullName != null) editFullName.setText(vet.fullName);
+                                    if (vet.clinicAddress != null) editClinicAddress.setText(vet.clinicAddress);
+                                    if (vet.workHoursFirstPart != null) editWorkHoursFirstPart.setText(vet.workHoursFirstPart);
+                                    if (vet.workHoursSecondPart != null) editWorkHoursSecondPart.setText(vet.workHoursSecondPart);
+                                    if (vet.workHoursThirdPart != null) editWorkHoursThirdPart.setText(vet.workHoursThirdPart);
+                                    if (vet.phoneNumber != null) editPhoneNumber.setText(vet.phoneNumber);
                                     String imageUrl = vet.profileImageUrl;
                                     if (imageUrl != null && !imageUrl.isEmpty()) {
                                         currentProfileImageUrl = imageUrl;
@@ -157,10 +163,6 @@ public class EditVetProfileFragment extends Fragment {
                                         SharedPreferences.Editor editor = sharedPreferences.edit();
                                         editor.putString("profileImageUrl", imageUrl);
                                         editor.apply();
-                                    }
-                                    String phone = vet.phoneNumber;
-                                    if (phone != null) {
-                                        editPhoneNumber.setText(phone);
                                     }
                                 }
                             }
@@ -332,9 +334,7 @@ public class EditVetProfileFragment extends Fragment {
         updates.put("workHoursThirdPart", profileData.workHoursThirdPart);
         updates.put("email", profileData.email);
         updates.put("phoneNumber", profileData.phoneNumber);
-        if (profileData.profileImageUrl != null && !profileData.profileImageUrl.isEmpty()) {
-            updates.put("profileImageUrl", profileData.profileImageUrl);
-        }
+        updates.put("profileImageUrl", profileData.profileImageUrl);
 
         String vetId = auth.getCurrentUser().getUid();
         db.collection("Veterinarians").document(vetId)
@@ -459,6 +459,13 @@ public class EditVetProfileFragment extends Fragment {
         }
 
         Toast.makeText(requireContext(), "Profile updated successfully", Toast.LENGTH_SHORT).show();
-        requireActivity().getSupportFragmentManager().popBackStack();
+        navigateToVetHome();
+    }
+
+    // פונקציה חדשה: חזרה ל-VetHomeFragment
+    private void navigateToVetHome() {
+        requireActivity().getSupportFragmentManager().beginTransaction()
+            .replace(R.id.fragment_container, new com.example.vetcalls.vetFragment.VetHomeFragment())
+            .commit();
     }
 }
