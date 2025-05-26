@@ -14,7 +14,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.vetcalls.R;
-import com.example.vetcalls.chat.ChatMessageFragment;
+import com.example.vetcalls.usersFragment.ChatMessageFragment;
 import com.example.vetcalls.obj.ChatPreview;
 import com.example.vetcalls.obj.ChatPreviewAdapter;
 import com.example.vetcalls.obj.DogProfile;

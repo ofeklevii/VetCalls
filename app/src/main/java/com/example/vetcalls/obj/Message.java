@@ -1,4 +1,4 @@
-package com.example.vetcalls.obj;
+package com.example.vetcalls.chat;
 
 import java.util.Date;
 

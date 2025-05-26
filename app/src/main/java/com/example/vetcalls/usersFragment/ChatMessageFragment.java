@@ -1,4 +1,4 @@
-package com.example.vetcalls.chat;
+package com.example.vetcalls.usersFragment;
 
 import android.app.Activity;
 import android.content.Context;
@@ -21,8 +21,8 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
 import com.example.vetcalls.R;
-import com.example.vetcalls.obj.Message;
 import com.example.vetcalls.obj.MessageAdapter;
+import com.example.vetcalls.chat.Message;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.*;
