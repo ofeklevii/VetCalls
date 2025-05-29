@@ -273,7 +273,12 @@ public class EditProfileFragment extends Fragment {
                         if (position != -1) {
                             vetSpinner.setSelection(position);
                         }
-                        lastVetChange = Long.parseLong(age);
+                        // הגנה על המרת age ל-Long
+                        try {
+                            lastVetChange = Long.parseLong(age);
+                        } catch (NumberFormatException e) {
+                            lastVetChange = 0L;
+                        }
                         Log.d(TAG, "Loaded lastVetChange from Firestore: " + lastVetChange + " for dog: " + dogId);
                         String imageUrl = documentSnapshot.getString("profileImageUrl");
                         Log.d(TAG, "Loaded image URL: " + imageUrl);
@@ -338,7 +343,7 @@ public class EditProfileFragment extends Fragment {
         }
 
         // Build bio
-        String bio = buildBio(weight, allergies, vaccines);
+        String bio = buildBio(weight, allergies, vaccines, race, birthday);
 
         // בדיקה אם וטרינר נבחר
         if (selectedVetId == null || selectedVetName == null) {
@@ -370,8 +375,13 @@ public class EditProfileFragment extends Fragment {
         dogProfile.ownerId = ownerId;
         dogProfile.lastUpdated = System.currentTimeMillis();
         dogProfile.lastVetChange = now;
+        dogProfile.race = race;
+        dogProfile.birthday = birthday;
+        dogProfile.age = ageStr;
         if (downloadUrl != null && !downloadUrl.isEmpty()) {
             dogProfile.profileImageUrl = downloadUrl;
+        } else {
+            dogProfile.profileImageUrl = ""; // תמונה ריקה אם לא נבחרה
         }
 
         Log.d(TAG, "Saving profile with dogId: " + dogId);
@@ -379,17 +389,11 @@ public class EditProfileFragment extends Fragment {
         // עדכון גלובלי בכל המקומות
         com.example.vetcalls.obj.FirestoreUserHelper.updateDogProfileEverywhere(dogProfile);
 
-        // שמירה גם בתת-קולקשן Dogs של המשתמש
-        DogProfile dogBasicData = new DogProfile();
-        dogBasicData.dogId = dogId;
-        dogBasicData.name = name;
-        dogBasicData.profileImageUrl = downloadUrl != null ? downloadUrl : "";
-        dogBasicData.vetId = selectedVetId;
-        dogBasicData.age = ageStr;
+        // שמירה גם בתת-קולקשן Dogs של המשתמש (כל השדות)
         db.collection("Users").document(ownerId)
             .collection("Dogs").document(dogId)
-            .set(dogBasicData)
-            .addOnSuccessListener(aVoid -> Log.d(TAG, "Dog basic data saved to user's Dogs subcollection"))
+            .set(dogProfile)
+            .addOnSuccessListener(aVoid -> Log.d(TAG, "Dog full data saved to user's Dogs subcollection"))
             .addOnFailureListener(e -> Log.e(TAG, "Error saving dog to user's Dogs subcollection: " + e.getMessage()));
 
         // Handle image if selected
@@ -402,21 +406,25 @@ public class EditProfileFragment extends Fragment {
     }
 
     // Build bio from data
-    private String buildBio(String weight, String allergies, String vaccines) {
+    private String buildBio(String weight, String allergies, String vaccines, String race, String birthday) {
         StringBuilder bioBuilder = new StringBuilder();
         if (weight != null && !weight.isEmpty()) {
             bioBuilder.append("Weight: ").append(weight).append(" kg");
         }
+        if (race != null && !race.isEmpty()) {
+            if (bioBuilder.length() > 0) bioBuilder.append("\n");
+            bioBuilder.append("Race: ").append(race);
+        }
+        if (birthday != null && !birthday.isEmpty()) {
+            if (bioBuilder.length() > 0) bioBuilder.append("\n");
+            bioBuilder.append("Birthday: ").append(birthday);
+        }
         if (allergies != null && !allergies.isEmpty()) {
-            if (bioBuilder.length() > 0) {
-                bioBuilder.append("\n");
-            }
+            if (bioBuilder.length() > 0) bioBuilder.append("\n");
             bioBuilder.append("Allergies: ").append(allergies);
         }
         if (vaccines != null && !vaccines.isEmpty()) {
-            if (bioBuilder.length() > 0) {
-                bioBuilder.append("\n");
-            }
+            if (bioBuilder.length() > 0) bioBuilder.append("\n");
             bioBuilder.append("Vaccines: ").append(vaccines);
         }
         return bioBuilder.toString().trim();
@@ -445,6 +453,8 @@ public class EditProfileFragment extends Fragment {
         if (downloadUrl != null && !downloadUrl.isEmpty()) {
             editor.putString("profileImageUrl", downloadUrl);
             Log.d(TAG, "Saving image URL to SharedPreferences: " + downloadUrl);
+        } else {
+            editor.remove("profileImageUrl"); // מסיר תמונה ישנה אם אין חדשה
         }
 
         editor.apply();
@@ -580,7 +590,9 @@ public class EditProfileFragment extends Fragment {
                     calculateDogAge(editBirthday.getText().toString().trim()),
                     buildBio(editWeight.getText().toString().trim(),
                             editAllergies.getText().toString().trim(),
-                            editVaccines.getText().toString().trim()),
+                            editVaccines.getText().toString().trim(),
+                            editRace.getText().toString().trim(),
+                            editBirthday.getText().toString().trim()),
                     editRace.getText().toString().trim(),
                     editBirthday.getText().toString().trim(),
                     editWeight.getText().toString().trim(),
@@ -639,7 +651,9 @@ public class EditProfileFragment extends Fragment {
                                             calculateDogAge(editBirthday.getText().toString().trim()),
                                             buildBio(editWeight.getText().toString().trim(),
                                                     editAllergies.getText().toString().trim(),
-                                                    editVaccines.getText().toString().trim()),
+                                                    editVaccines.getText().toString().trim(),
+                                                    editRace.getText().toString().trim(),
+                                                    editBirthday.getText().toString().trim()),
                                             editRace.getText().toString().trim(),
                                             editBirthday.getText().toString().trim(),
                                             editWeight.getText().toString().trim(),
@@ -658,7 +672,9 @@ public class EditProfileFragment extends Fragment {
                                             calculateDogAge(editBirthday.getText().toString().trim()),
                                             buildBio(editWeight.getText().toString().trim(),
                                                     editAllergies.getText().toString().trim(),
-                                                    editVaccines.getText().toString().trim()),
+                                                    editVaccines.getText().toString().trim(),
+                                                    editRace.getText().toString().trim(),
+                                                    editBirthday.getText().toString().trim()),
                                             editRace.getText().toString().trim(),
                                             editBirthday.getText().toString().trim(),
                                             editWeight.getText().toString().trim(),
@@ -677,7 +693,9 @@ public class EditProfileFragment extends Fragment {
                                 calculateDogAge(editBirthday.getText().toString().trim()),
                                 buildBio(editWeight.getText().toString().trim(),
                                         editAllergies.getText().toString().trim(),
-                                        editVaccines.getText().toString().trim()),
+                                        editVaccines.getText().toString().trim(),
+                                        editRace.getText().toString().trim(),
+                                        editBirthday.getText().toString().trim()),
                                 editRace.getText().toString().trim(),
                                 editBirthday.getText().toString().trim(),
                                 editWeight.getText().toString().trim(),
@@ -699,7 +717,9 @@ public class EditProfileFragment extends Fragment {
                             calculateDogAge(editBirthday.getText().toString().trim()),
                             buildBio(editWeight.getText().toString().trim(),
                                     editAllergies.getText().toString().trim(),
-                                    editVaccines.getText().toString().trim()),
+                                    editVaccines.getText().toString().trim(),
+                                    editRace.getText().toString().trim(),
+                                    editBirthday.getText().toString().trim()),
                             editRace.getText().toString().trim(),
                             editBirthday.getText().toString().trim(),
                             editWeight.getText().toString().trim(),

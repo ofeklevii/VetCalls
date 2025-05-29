@@ -582,21 +582,19 @@ public class HomeFragment extends Fragment implements DogProfileAdapter.OnDogCli
 
     private String createBioText(DogProfile dog) {
         StringBuilder bio = new StringBuilder();
-
         addIfNotEmpty(bio, "Weight", dog.weight, " kg");
         addIfNotEmpty(bio, "Race", dog.race, "");
+        addIfNotEmpty(bio, "Birthday", dog.birthday, "");
         addIfNotEmpty(bio, "Allergies", dog.allergies, "");
         addIfNotEmpty(bio, "Vaccines", dog.vaccines, "");
-
         String result = bio.toString().trim();
-        if (result.isEmpty()) {
-            if (dog.bio != null && !dog.bio.isEmpty()) {
-                return dog.bio;
-            } else {
-            return "No information available";
-            }
+        if (!result.isEmpty()) {
+            return result;
         }
-        return result;
+        if (dog.bio != null && !dog.bio.isEmpty()) {
+            return dog.bio;
+        }
+        return "No information available";
     }
 
     private void addIfNotEmpty(StringBuilder bio, String label, String value, String suffix) {
@@ -620,7 +618,7 @@ public class HomeFragment extends Fragment implements DogProfileAdapter.OnDogCli
             String vetId = document.getString("vetId");
 
             // Extract age and weight (can be number or string)
-            String age = extractStringOrNumber(document, "age", "Unknown");
+            String age = extractStringOrNumber(document, "age", "0");
             String weight = extractStringOrNumber(document, "weight", "");
 
             // Get image URL (try both fields)
@@ -628,6 +626,7 @@ public class HomeFragment extends Fragment implements DogProfileAdapter.OnDogCli
             if (imageUrl == null || imageUrl.isEmpty()) {
                 imageUrl = document.getString("imageUrl");
             }
+            if (imageUrl == null) imageUrl = "";
             imageUrl = getBestImageUrl(imageUrl);
 
             DogProfile dog = new DogProfile();
@@ -684,6 +683,22 @@ public class HomeFragment extends Fragment implements DogProfileAdapter.OnDogCli
     public void onResume() {
         super.onResume();
 
+        // Clear SharedPreferences if user changed
+        String currentUserId = FirebaseAuth.getInstance().getCurrentUser() != null ? 
+            FirebaseAuth.getInstance().getCurrentUser().getUid() : null;
+        String savedUserId = sharedPreferences.getString("userId", null);
+
+        if (currentUserId != null && !currentUserId.equals(savedUserId)) {
+            // New user logged in - clear all saved data
+            sharedPreferences.edit().clear().apply();
+            // Save new user ID
+            sharedPreferences.edit().putString("userId", currentUserId).apply();
+            // Clear dog list
+            dogList.clear();
+            adapter.notifyDataSetChanged();
+            clearTopProfileDisplay();
+        }
+
         // עדכון הממשק מנתונים מקומיים
         updateFromPreferences();
 
@@ -709,6 +724,7 @@ public class HomeFragment extends Fragment implements DogProfileAdapter.OnDogCli
         String weight = sharedPreferences.getString("weight", null);
         String allergies = sharedPreferences.getString("allergies", null);
         String vaccines = sharedPreferences.getString("vaccines", null);
+        String birthday = sharedPreferences.getString("birthday", null);
         String bio = sharedPreferences.getString("bio", null);
 
         if (name != null && !name.isEmpty()) {
@@ -723,6 +739,7 @@ public class HomeFragment extends Fragment implements DogProfileAdapter.OnDogCli
         StringBuilder bioBuilder = new StringBuilder();
         addIfNotEmpty(bioBuilder, "Weight", weight, " kg");
         addIfNotEmpty(bioBuilder, "Race", race, "");
+        addIfNotEmpty(bioBuilder, "Birthday", birthday, "");
         addIfNotEmpty(bioBuilder, "Allergies", allergies, "");
         addIfNotEmpty(bioBuilder, "Vaccines", vaccines, "");
 
@@ -731,6 +748,8 @@ public class HomeFragment extends Fragment implements DogProfileAdapter.OnDogCli
             bioTextView.setText(builtBio);
         } else if (bio != null && !bio.isEmpty()) {
             bioTextView.setText(bio);
+        } else {
+            bioTextView.setText("No information available");
         }
 
         // Load image
