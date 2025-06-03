@@ -45,7 +45,6 @@
                 android:textColor="#666666"
                 android:textSize="14sp" />
 
-            <!-- הסתרת הביו כדי שהוא לא יופיע בפריט ברשימה -->
             <TextView
                 android:id="@+id/dogBio"
                 android:layout_width="wrap_content"

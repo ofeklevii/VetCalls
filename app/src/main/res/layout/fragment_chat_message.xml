@@ -5,7 +5,6 @@
     android:layout_height="match_parent"
     android:background="@android:color/white">
 
-    <!-- כותרת הצ'אט -->
     <RelativeLayout
         android:id="@+id/chatHeader"
         android:layout_width="match_parent"
@@ -46,7 +45,6 @@
             android:textStyle="bold" />
     </RelativeLayout>
 
-    <!-- רשימת הודעות -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/messagesRecyclerView"
         android:layout_width="match_parent"
@@ -58,7 +56,6 @@
         android:clipToPadding="false"
         android:scrollbars="vertical" />
 
-    <!-- תצוגה מקדימה למדיה שנבחרה -->
     <FrameLayout
         android:id="@+id/mediaPreviewLayout"
         android:layout_width="match_parent"
@@ -90,7 +87,6 @@
             android:visibility="gone"/>
     </FrameLayout>
 
-    <!-- אזור הזנת הודעה -->
     <RelativeLayout
         android:id="@+id/messageInputLayout"
         android:layout_width="match_parent"

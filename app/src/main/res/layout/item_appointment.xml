@@ -14,7 +14,6 @@
         android:orientation="vertical"
         android:padding="16dp">
 
-        <!-- Appointment Date -->
         <TextView
             android:id="@+id/textAppointmentDate"
             android:layout_width="wrap_content"
@@ -24,7 +23,6 @@
             android:textStyle="bold"
             android:textColor="@color/black"/>
 
-        <!-- Appointment Time -->
         <TextView
             android:id="@+id/textAppointmentTime"
             android:layout_width="wrap_content"
@@ -34,7 +32,6 @@
             android:textColor="@color/blue1"
             android:layout_marginTop="4dp"/>
 
-        <!-- Dog Name -->
         <TextView
             android:id="@+id/textDogName"
             android:layout_width="wrap_content"

@@ -8,7 +8,6 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
-        <!-- רשימת כל הכלבים של הווטרינר -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/dogsRecyclerView"
             android:layout_width="match_parent"
@@ -16,7 +15,6 @@
             android:visibility="visible"
             android:layout_marginBottom="16dp"/>
 
-        <!-- עוטף את כל פרטי הכלב -->
         <LinearLayout
             android:id="@+id/detailsContainer"
             android:orientation="vertical"

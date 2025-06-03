@@ -15,7 +15,6 @@
         android:clipToOutline="true"
         android:background="@drawable/circle_shape"/>
 
-    <!-- שם הווטרינר -->
     <TextView
         android:id="@+id/vetFullName"
         android:layout_width="wrap_content"
@@ -26,7 +25,6 @@
         android:layout_gravity="center_horizontal"
         android:layout_marginTop="8dp"/>
 
-    <!-- תת-כותרת מקצועית -->
     <TextView
         android:id="@+id/vetSpecialty"
         android:layout_width="wrap_content"
@@ -36,7 +34,6 @@
         android:layout_gravity="center_horizontal"
         android:layout_marginTop="4dp"/>
 
-    <!-- כרטיס מידע -->
     <androidx.cardview.widget.CardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -50,7 +47,6 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-            <!-- אימייל -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -72,7 +68,6 @@
                     android:textSize="16sp"/>
             </LinearLayout>
 
-            <!-- כתובת מרפאה -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -94,7 +89,6 @@
                     android:textSize="16sp"/>
             </LinearLayout>
 
-            <!-- מספר טלפון -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -116,7 +110,6 @@
                     android:textSize="16sp"/>
             </LinearLayout>
 
-            <!-- שעות קבלה -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -134,7 +127,6 @@
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 
-    <!-- כפתור עריכת פרופיל -->
     <Button
         android:id="@+id/editProfileButton"
         android:layout_width="match_parent"

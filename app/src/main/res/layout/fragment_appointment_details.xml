@@ -7,7 +7,6 @@
     android:layout_height="match_parent"
     tools:context=".usersFragment.AppointmentDetailsFragment">
 
-    <!-- כפתור חזרה -->
     <ImageButton
         android:id="@+id/backButton"
         android:layout_width="48dp"
@@ -20,7 +19,6 @@
         app:layout_constraintStart_toStartOf="parent"
         android:layout_margin="16dp"/>
 
-    <!-- כותרת התור -->
     <TextView
         android:id="@+id/appointmentTitle"
         android:layout_width="wrap_content"
@@ -34,7 +32,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>
 
-    <!-- תאריך התור -->
     <TextView
         android:id="@+id/textDate"
         android:layout_width="wrap_content"
@@ -47,7 +44,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/appointmentTitle" />
 
-    <!-- שעת התור -->
     <TextView
         android:id="@+id/textTime"
         android:layout_width="wrap_content"
@@ -60,7 +56,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>
 
-    <!-- סוג התור - שדה חדש -->
     <TextView
         android:id="@+id/textAppointmentType"
         android:layout_width="wrap_content"
@@ -73,7 +68,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>
 
-    <!-- שם הווטרינר -->
     <TextView
         android:id="@+id/textVetName"
         android:layout_width="wrap_content"
@@ -86,7 +80,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>
 
-    <!-- שם הכלב -->
     <TextView
         android:id="@+id/textDogName"
         android:layout_width="match_parent"
@@ -100,7 +93,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>
 
-    <!-- הערות -->
     <TextView
         android:id="@+id/textDetails"
         android:layout_width="match_parent"
@@ -114,7 +106,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>
 
-    <!-- כפתור עריכת התור -->
     <Button
         android:id="@+id/editAppointmentButton"
         android:layout_width="match_parent"
@@ -129,7 +120,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>
 
-    <!-- כפתור מחיקת התור -->
     <Button
         android:id="@+id/deleteAppointmentButton"
         android:layout_width="match_parent"
@@ -143,7 +133,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>
 
-    <!-- כפתור סימון תור כהסתיים -->
     <Button
         android:id="@+id/markCompletedButton"
         android:layout_width="match_parent"

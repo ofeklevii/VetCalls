@@ -96,7 +96,6 @@
                 android:inputType="text"
                 android:layout_marginBottom="16dp" />
 
-            <!-- Veterinarian Selection Section -->
             <TextView
                 android:id="@+id/vetSectionTitle"
                 android:layout_width="match_parent"
