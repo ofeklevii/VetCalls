@@ -143,22 +143,27 @@ public class VetHomeFragment extends Fragment {
             Log.e(TAG, "Cannot update UI with null profile data");
             return;
         }
+        Log.d(TAG, "updateUIWithProfileData: " + profileData);
 
         // עדכון שם מלא
         String fullName = profileData.get("fullName") != null ? profileData.get("fullName").toString() : "Veterinarian";
         vetFullName.setText(fullName);
+        Log.d(TAG, "Setting vetFullName: " + fullName);
 
         // עדכון אימייל
         String email = profileData.get("email") != null ? profileData.get("email").toString() : null;
         if (email != null && !email.isEmpty()) {
             vetEmail.setText(email);
+            Log.d(TAG, "Setting vetEmail: " + email);
         } else if (auth.getCurrentUser() != null && auth.getCurrentUser().getEmail() != null) {
             vetEmail.setText(auth.getCurrentUser().getEmail());
+            Log.d(TAG, "Setting vetEmail (from auth): " + auth.getCurrentUser().getEmail());
         }
 
         // עדכון כתובת מרפאה
         String clinicAddress = profileData.get("clinicAddress") != null ? profileData.get("clinicAddress").toString() : "";
         vetClinicAddress.setText(clinicAddress);
+        Log.d(TAG, "Setting vetClinicAddress: " + clinicAddress);
 
         // עדכון שעות קבלה
         String workHoursFirstPart = profileData.get("workHoursFirstPart") != null ? profileData.get("workHoursFirstPart").toString() : "Sunday - Thursday: 08:00 - 00:00";
@@ -166,13 +171,16 @@ public class VetHomeFragment extends Fragment {
         String workHoursThirdPart = profileData.get("workHoursThirdPart") != null ? profileData.get("workHoursThirdPart").toString() : "Saturday: 19:00 - 23:00";
         String workHoursText = String.format("%s\n%s\n%s", workHoursFirstPart, workHoursSecondPart, workHoursThirdPart);
         vetWorkHours.setText(workHoursText);
+        Log.d(TAG, "Setting vetWorkHours: " + workHoursText);
 
         // עדכון מספר טלפון
         String phoneNumber = profileData.get("phoneNumber") != null ? profileData.get("phoneNumber").toString() : "";
         vetPhoneNumber.setText(phoneNumber);
+        Log.d(TAG, "Setting vetPhoneNumber: " + phoneNumber);
 
         // טעינת תמונת פרופיל עם שיפורים
         String profileImageUrl = profileData.get("profileImageUrl") != null ? profileData.get("profileImageUrl").toString() : null;
+        Log.d(TAG, "Setting profileImageUrl: " + profileImageUrl);
         loadProfileImage(profileImageUrl);
     }
 

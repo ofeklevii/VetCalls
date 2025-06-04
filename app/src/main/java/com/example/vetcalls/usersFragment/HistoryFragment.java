@@ -23,6 +23,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.HashMap;
 
 import java.text.SimpleDateFormat;
 import android.util.Log;
@@ -64,13 +65,11 @@ public class HistoryFragment extends Fragment {
 
         // הגדרת ה-RecyclerView
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
-        adapter = new AppointmentAdapter(appointmentList, requireActivity());
+        adapter = new AppointmentAdapter(appointmentList, requireActivity(), false);
         recyclerView.setAdapter(adapter);
 
         // טעינת תורים שהסתיימו
         loadCompletedAppointments();
-
-        Toast.makeText(getContext(), "HistoryFragment loaded", Toast.LENGTH_SHORT).show();
 
         return view;
     }
@@ -84,54 +83,63 @@ public class HistoryFragment extends Fragment {
 
     private void loadCompletedAppointments() {
         appointmentList.clear();
-
-        db.collection("appointments")
-                .whereEqualTo("ownerId", userId)
-                .get()
-                .addOnSuccessListener(queryDocumentSnapshots -> {
-                    Log.d("HistoryDebug", "userId=" + userId);
-                    Log.d("HistoryDebug", "query size=" + queryDocumentSnapshots.size());
-                    List<Map<String, Object>> pastAppointments = new ArrayList<>();
-                    Date now = new Date();
-                    SimpleDateFormat format = new SimpleDateFormat("yyyy-M-d HH:mm", Locale.getDefault());
-
-                    for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
-                        String date = (String) document.get("date");
-                        String endTime = (String) document.get("endTime");
-                        Boolean completed = (Boolean) document.get("completed");
-                        Log.d("HistoryDebug", "date=" + date + ", endTime=" + endTime);
-                        if (date != null && endTime != null) {
-                            try {
-                                Date appointmentEnd = format.parse(date + " " + endTime);
-                                Log.d("HistoryDebug", "appointmentEnd=" + appointmentEnd + ", now=" + now);
-                                if ((appointmentEnd != null && appointmentEnd.before(now)) || (completed != null && completed)) {
-                                    pastAppointments.add(document.getData());
-                                    Log.d("HistoryDebug", "ADDED: " + document.getId());
-                                } else {
-                                    Log.d("HistoryDebug", "NOT ADDED: " + document.getId());
-                                }
-                            } catch (Exception e) {
-                                Log.e("HistoryDebug", "Parse error: " + e.getMessage());
-                            }
-                        }
-                    }
-
-                    // סדר יורד לפי תאריך+שעה
-                    pastAppointments.sort((a, b) -> {
-                        try {
-                            Date da = format.parse(a.get("date") + " " + a.get("endTime"));
-                            Date db_ = format.parse(b.get("date") + " " + b.get("endTime"));
-                            return db_.compareTo(da);
-                        } catch (Exception e) { return 0; }
-                    });
-
-                    appointmentList.addAll(pastAppointments);
+        Log.d("HistoryDebug", "Start loading completed appointments for userId: " + userId);
+        db.collection("DogProfiles")
+            .whereEqualTo("ownerId", userId)
+            .get()
+            .addOnSuccessListener(dogSnapshots -> {
+                List<String> dogIds = new ArrayList<>();
+                for (QueryDocumentSnapshot dogDoc : dogSnapshots) {
+                    dogIds.add(dogDoc.getId());
+                }
+                Log.d("HistoryDebug", "Found " + dogIds.size() + " dogs for userId: " + userId);
+                if (dogIds.isEmpty()) {
                     adapter.updateAppointments(appointmentList);
-
-                    if (appointmentList.isEmpty()) showEmptyState();
-                    else hideEmptyState();
-                })
-                .addOnFailureListener(e -> showEmptyState());
+                    showEmptyState();
+                    return;
+                }
+                final int[] finished = {0};
+                final int total = dogIds.size();
+                for (String dogId : dogIds) {
+                    db.collection("DogProfiles")
+                      .document(dogId)
+                      .collection("Appointments")
+                      .whereEqualTo("completed", true)
+                      .get()
+                      .addOnSuccessListener(appointmentsSnapshot -> {
+                          Log.d("HistoryDebug", "Dog " + dogId + " has " + appointmentsSnapshot.size() + " completed appointments");
+                          for (QueryDocumentSnapshot appointmentDoc : appointmentsSnapshot) {
+                              Map<String, Object> appointmentData = appointmentDoc.getData();
+                              Log.d("HistoryDebug", "Appointment data: " + appointmentData);
+                              appointmentList.add(appointmentData);
+                          }
+                          finished[0]++;
+                          if (finished[0] == total) {
+                              Log.d("HistoryDebug", "Total completed appointments loaded: " + appointmentList.size());
+                              // סינון כפילויות לפי מזהה תור
+                              Map<String, Map<String, Object>> uniqueAppointments = new HashMap<>();
+                              for (Map<String, Object> appt : appointmentList) {
+                                  String id = (String) appt.get("id");
+                                  if (id != null) uniqueAppointments.put(id, appt);
+                              }
+                              appointmentList = new ArrayList<>(uniqueAppointments.values());
+                              adapter.updateAppointments(appointmentList);
+                              if (appointmentList.isEmpty()) showEmptyState();
+                              else hideEmptyState();
+                          }
+                      })
+                      .addOnFailureListener(e -> {
+                          Log.e("HistoryDebug", "Failed to load appointments for dog " + dogId, e);
+                          finished[0]++;
+                          if (finished[0] == total) {
+                              Log.d("HistoryDebug", "Total completed appointments loaded (with errors): " + appointmentList.size());
+                              adapter.updateAppointments(appointmentList);
+                              if (appointmentList.isEmpty()) showEmptyState();
+                              else hideEmptyState();
+                          }
+                      });
+                }
+            });
     }
 
     private void showEmptyState() {

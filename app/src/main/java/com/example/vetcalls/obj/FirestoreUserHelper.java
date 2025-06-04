@@ -140,17 +140,19 @@ public class FirestoreUserHelper {
 
     // עדכון רשימת הכלבים של המשתמש
     private static void updateUserDogReferences(String ownerId, String dogId, String dogName) {
-        DogProfile dogRef = new DogProfile();
-        dogRef.dogId = dogId;
-        dogRef.name = dogName;
-        dogRef.lastUpdated = System.currentTimeMillis();
-
-        // Add reference to user's dogs subcollection
-        db.collection("Users").document(ownerId)
-                .collection("Dogs").document(dogId)
-                .set(dogRef)
-                .addOnSuccessListener(aVoid -> Log.d(TAG, "Dog reference added to user"))
-                .addOnFailureListener(e -> Log.e(TAG, "Failed to add dog reference", e));
+        // Load the full dog profile from DogProfiles and save all fields to the user's Dogs subcollection
+        db.collection("DogProfiles").document(dogId).get().addOnSuccessListener(doc -> {
+            if (doc.exists()) {
+                DogProfile dog = doc.toObject(DogProfile.class);
+                if (dog != null) {
+                    db.collection("Users").document(ownerId)
+                        .collection("Dogs").document(dogId)
+                        .set(dog)
+                        .addOnSuccessListener(aVoid -> Log.d(TAG, "Dog reference added to user with all fields"))
+                        .addOnFailureListener(e -> Log.e(TAG, "Failed to add dog reference", e));
+                }
+            }
+        });
     }
 
     // העלאת תמונת פרופיל של כלב
@@ -552,5 +554,37 @@ public class FirestoreUserHelper {
                         );
                     }
                 });
+    }
+
+    public static void markAppointmentCompletedEverywhere(android.content.Context context, String appointmentId, String dogId, String vetId, Runnable onSuccess, java.util.function.Consumer<String> onError) {
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
+        // עדכון אצל הווטרינר
+        db.collection("Veterinarians")
+          .document(vetId)
+          .collection("Appointments")
+          .document(appointmentId)
+          .update("completed", true)
+          .addOnFailureListener(e -> {
+              if (onError != null) onError.accept("Vet: " + e.getMessage());
+          });
+        // עדכון אצל הכלב
+        db.collection("DogProfiles")
+          .document(dogId)
+          .collection("Appointments")
+          .document(appointmentId)
+          .update("completed", true)
+          .addOnFailureListener(e -> {
+              if (onError != null) onError.accept("Dog: " + e.getMessage());
+          });
+        // עדכון באוסף הגלובלי
+        db.collection("appointments")
+          .document(appointmentId)
+          .update("completed", true)
+          .addOnSuccessListener(aVoid -> {
+              if (onSuccess != null) onSuccess.run();
+          })
+          .addOnFailureListener(e -> {
+              if (onError != null) onError.accept("Global: " + e.getMessage());
+          });
     }
 }

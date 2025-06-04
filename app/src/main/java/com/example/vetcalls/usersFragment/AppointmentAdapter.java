@@ -16,10 +16,12 @@ import java.util.Map;
 public class AppointmentAdapter extends RecyclerView.Adapter<AppointmentViewHolder> {
     private List<Map<String, Object>> appointmentList;
     private FragmentActivity activity;
+    private boolean showActions;
 
-    public AppointmentAdapter(List<Map<String, Object>> appointmentList, FragmentActivity activity) {
+    public AppointmentAdapter(List<Map<String, Object>> appointmentList, FragmentActivity activity, boolean showActions) {
         this.appointmentList = appointmentList;
         this.activity = activity;
+        this.showActions = showActions;
     }
 
     @NonNull
@@ -43,6 +45,9 @@ public class AppointmentAdapter extends RecyclerView.Adapter<AppointmentViewHold
             AppointmentDetailsFragment detailsFragment = new AppointmentDetailsFragment();
             Bundle args = new Bundle();
             args.putString("appointmentId", (String) appointment.get("id"));
+            args.putString("dogId", (String) appointment.get("dogId"));
+            args.putString("vetId", (String) appointment.get("vetId"));
+            args.putBoolean("showActions", showActions);
             detailsFragment.setArguments(args);
 
             FragmentActivity activity = (FragmentActivity) holder.itemView.getContext();

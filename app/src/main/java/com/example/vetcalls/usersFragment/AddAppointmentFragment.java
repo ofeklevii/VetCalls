@@ -23,8 +23,10 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
 import com.example.vetcalls.R;
+import com.example.vetcalls.obj.DogItem;
 import com.example.vetcalls.obj.NotificationHelper;
 import com.example.vetcalls.obj.FirestoreUserHelper;
+import com.example.vetcalls.obj.VetItem;
 import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
@@ -386,11 +388,6 @@ public class AddAppointmentFragment extends Fragment {
         // שמירה בתת-קולקשן של הכלב (קיים)
         FirestoreUserHelper.addAppointment(appointmentId, appointmentData);
 
-        // שמירה גם ב-root appointments
-        FirebaseFirestore.getInstance().collection("appointments")
-            .document(appointmentId)
-            .set(appointmentData);
-
         Toast.makeText(requireContext(), isEdit ? "Appointment updated successfully" : "Appointment created successfully", Toast.LENGTH_SHORT).show();
         requireActivity().getSupportFragmentManager().popBackStack();
     }
@@ -633,22 +630,5 @@ public class AddAppointmentFragment extends Fragment {
             case "1 week before": return appointmentTime - (7 * 24 * 60 * 60 * 1000);
             default: return 0;
         }
-    }
-
-    // Helper classes
-    public static class DogItem {
-        private String id, name;
-        public DogItem(String id, String name) { this.id = id; this.name = name; }
-        public String getId() { return id; }
-        public String getName() { return name; }
-        @Override public String toString() { return name; }
-    }
-
-    public static class VetItem {
-        private String id, name;
-        public VetItem(String id, String name) { this.id = id; this.name = name; }
-        public String getId() { return id; }
-        public String getName() { return name; }
-        @Override public String toString() { return name; }
     }
 }

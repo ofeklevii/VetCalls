@@ -32,6 +32,11 @@ public class AppointmentDetailsFragment extends Fragment {
     private static final String ARG_VET_ID = "vetId";
     private static final String ARG_DOG_NAME = "dogName";
 
+    // משתני מחלקה לשמירת ערכי התור
+    private String appointmentId, dogId, vetId, date, time, type, vetName, dogName, details;
+    private boolean showActions = true;
+    private Button editButton, deleteButton, markCompletedButton;
+
     // מתודה קיימת - תאימות לאחור
     public static AppointmentDetailsFragment newInstance(String date, String time, String details,
                                                          String veterinarian, String type) {
@@ -82,94 +87,98 @@ public class AppointmentDetailsFragment extends Fragment {
         TextView textDetails = view.findViewById(R.id.textDetails);
         TextView textVetName = view.findViewById(R.id.textVetName);
         TextView textAppointmentType = view.findViewById(R.id.textAppointmentType);
-        ImageView backButton = view.findViewById(R.id.backButton);
-
-        // כפתורים חדשים לעריכה ומחיקה
-        Button editButton = view.findViewById(R.id.editAppointmentButton);
-        Button deleteButton = view.findViewById(R.id.deleteAppointmentButton);
         TextView textDogName = view.findViewById(R.id.textDogName);
-        Button markCompletedButton = view.findViewById(R.id.markCompletedButton);
+        ImageView backButton = view.findViewById(R.id.backButton);
+        editButton = view.findViewById(R.id.editAppointmentButton);
+        deleteButton = view.findViewById(R.id.deleteAppointmentButton);
+        markCompletedButton = view.findViewById(R.id.markCompletedButton);
+        View loadingProgressBar = view.findViewById(R.id.loadingProgressBar);
 
-        // בדיקת isVet מ-SharedPreferences
+        // קבלת מזהים מה-arguments
+        if (getArguments() != null) {
+            appointmentId = getArguments().getString(ARG_APPOINTMENT_ID, "");
+            dogId = getArguments().getString(ARG_DOG_ID, "");
+            vetId = getArguments().getString(ARG_VET_ID, "");
+            showActions = getArguments().getBoolean("showActions", true);
+        }
+        android.util.Log.d("AppointmentDetails", "onCreateView showActions=" + showActions);
+
+        // הסתר את כל ה-UI פרט ל-ProgressBar
+        setUiVisibility(view, false);
+        loadingProgressBar.setVisibility(View.VISIBLE);
+
+        // הסתרה מיידית של הכפתורים בהתאם ל-showActions
+        if (editButton != null) editButton.setVisibility(showActions ? View.VISIBLE : View.GONE);
+        if (deleteButton != null) deleteButton.setVisibility(showActions ? View.VISIBLE : View.GONE);
+        if (markCompletedButton != null) markCompletedButton.setVisibility(showActions ? View.VISIBLE : View.GONE);
+
         SharedPreferences prefs = requireActivity().getSharedPreferences("UserProfile", android.content.Context.MODE_PRIVATE);
         boolean isVet = prefs.getBoolean("isVet", false);
 
-        if (getArguments() != null) {
-            String date = getArguments().getString(ARG_DATE, "");
-            String time = getArguments().getString(ARG_TIME, "");
-            String details = getArguments().getString(ARG_DETAILS, "");
-            String veterinarian = getArguments().getString(ARG_VETERINARIAN, "");
-            String type = getArguments().getString(ARG_TYPE, "");
-            String appointmentId = getArguments().getString(ARG_APPOINTMENT_ID, "");
-            String dogId = getArguments().getString(ARG_DOG_ID, "");
-            String vetId = getArguments().getString(ARG_VET_ID, "");
-            String dogName = getArguments().getString(ARG_DOG_NAME, "");
-
-            textDate.setText("Date: " + date);
-            textTime.setText("Time: " + time);
-            textVetName.setText("Veterinarian: " + veterinarian);
-
-            // הצגת שם הכלב אם קיים
-            if (textDogName != null) {
-                if (dogName != null && !dogName.isEmpty()) {
-                    textDogName.setText("Dog: " + dogName);
-                    textDogName.setVisibility(View.VISIBLE);
-                } else {
-                    textDogName.setVisibility(View.GONE);
-                }
-            }
-
-            // טיפול בסוג התור - להציג טקסט ברירת מחדל אם ריק
-            if (type.isEmpty()) {
-                textAppointmentType.setVisibility(View.GONE);
-            } else {
-                textAppointmentType.setText("Appointment type: " + type);
-                textAppointmentType.setVisibility(View.VISIBLE);
-            }
-
-            // טיפול בהערות
-            if (details.isEmpty()) {
-                textDetails.setText("Notes: No additional notes");
-            } else {
-                textDetails.setText("Notes: " + details);
-            }
-
-            // הצגת כפתורי עריכה ומחיקה רק אם יש את כל הפרטים הנדרשים
-            boolean canEditDelete = appointmentId != null && !appointmentId.isEmpty() &&
-                    dogId != null && !dogId.isEmpty() &&
-                    vetId != null && !vetId.isEmpty();
-
-            if (editButton != null) {
-                editButton.setVisibility(canEditDelete ? View.VISIBLE : View.GONE);
-                editButton.setOnClickListener(v -> editAppointment(appointmentId, dogId, vetId, date));
-            }
-
-            if (deleteButton != null) {
-                deleteButton.setVisibility(canEditDelete ? View.VISIBLE : View.GONE);
-                deleteButton.setOnClickListener(v -> showDeleteConfirmation(appointmentId, dogId, vetId));
-            }
-
-            // הצגת כפתור "סמן כתור שהסתיים" רק לוטרינר
-            if (markCompletedButton != null) {
-                markCompletedButton.setVisibility(isVet ? View.VISIBLE : View.GONE);
-                markCompletedButton.setOnClickListener(v -> markAppointmentCompleted(appointmentId));
-            }
-
-            if ((date == null || date.isEmpty()) && dogId != null && !dogId.isEmpty() && appointmentId != null && !appointmentId.isEmpty()) {
-                // טען פרטי תור מה-DB
-                FirebaseFirestore.getInstance().collection("DogProfiles").document(dogId).collection("Appointments").document(appointmentId)
-                        .get().addOnSuccessListener(documentSnapshot -> {
-                            if (documentSnapshot.exists()) {
-                                updateUIWithAppointment(documentSnapshot);
-                            }
-                        });
-            }
+        // טען תמיד את פרטי התור מה-DB
+        if (appointmentId != null && !appointmentId.isEmpty() && dogId != null && !dogId.isEmpty()) {
+            FirebaseFirestore.getInstance().collection("DogProfiles").document(dogId).collection("Appointments").document(appointmentId)
+                .get().addOnSuccessListener(documentSnapshot -> {
+                    if (documentSnapshot.exists()) {
+                        updateUIWithAppointment(documentSnapshot);
+                        // הצג את ה-UI והסתר את ה-ProgressBar
+                        setUiVisibility(view, true);
+                        loadingProgressBar.setVisibility(View.GONE);
+                        
+                        // עדכון נראה של הכפתורים בהתאם ל-showActions
+                        if (editButton != null) editButton.setVisibility(showActions ? View.VISIBLE : View.GONE);
+                        if (deleteButton != null) deleteButton.setVisibility(showActions ? View.VISIBLE : View.GONE);
+                        if (markCompletedButton != null) markCompletedButton.setVisibility(showActions && isVet ? View.VISIBLE : View.GONE);
+                    } else {
+                        // לא נמצא תור - הסתר ProgressBar, הצג הודעה
+                        loadingProgressBar.setVisibility(View.GONE);
+                        Toast.makeText(requireContext(), "Appointment not found", Toast.LENGTH_SHORT).show();
+                        // חזור למסך הקודם
+                        requireActivity().getSupportFragmentManager().popBackStack();
+                    }
+                }).addOnFailureListener(e -> {
+                    // שגיאה בטעינה - הסתר ProgressBar, הצג הודעה
+                    loadingProgressBar.setVisibility(View.GONE);
+                    Toast.makeText(requireContext(), "Failed to load appointment: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    // חזור למסך הקודם
+                    requireActivity().getSupportFragmentManager().popBackStack();
+                });
+        } else {
+            // אין מספיק מידע לטעינת התור
+            loadingProgressBar.setVisibility(View.GONE);
+            Toast.makeText(requireContext(), "Missing appointment information", Toast.LENGTH_SHORT).show();
+            requireActivity().getSupportFragmentManager().popBackStack();
         }
 
-        // כפתור חזרה לפרגמנט ההיסטוריה
         backButton.setOnClickListener(v -> requireActivity().getSupportFragmentManager().popBackStack());
 
         return view;
+    }
+
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+        android.util.Log.d("AppointmentDetails", "onViewCreated showActions=" + showActions);
+        SharedPreferences prefs = requireActivity().getSharedPreferences("UserProfile", android.content.Context.MODE_PRIVATE);
+        boolean isVet = prefs.getBoolean("isVet", false);
+        if (editButton != null) editButton.setVisibility(showActions ? View.VISIBLE : View.GONE);
+        if (deleteButton != null) deleteButton.setVisibility(showActions ? View.VISIBLE : View.GONE);
+        if (markCompletedButton != null) markCompletedButton.setVisibility(showActions && isVet ? View.VISIBLE : View.GONE);
+    }
+
+    // פונקציה שמסתירה/מציגה את כל ה-UI פרט ל-ProgressBar
+    private void setUiVisibility(View view, boolean visible) {
+        if (view == null) return;
+        
+        int uiVisibility = visible ? View.VISIBLE : View.GONE;
+        int[] ids = new int[] {
+            R.id.textDate, R.id.textTime, R.id.textDetails, R.id.textVetName, R.id.textAppointmentType,
+            R.id.textDogName, R.id.appointmentTitle, R.id.backButton
+        };
+        for (int id : ids) {
+            View v = view.findViewById(id);
+            if (v != null) v.setVisibility(uiVisibility);
+        }
     }
 
     private void editAppointment(String appointmentId, String dogId, String vetId, String date) {
@@ -238,29 +247,56 @@ public class AppointmentDetailsFragment extends Fragment {
                 });
     }
 
-    private void updateUIWithAppointment(DocumentSnapshot doc) {
+    // עדכון כל השדות במסך לפי מסמך התור
+    private void updateUIWithAppointment(com.google.firebase.firestore.DocumentSnapshot doc) {
+        date = doc.getString("date");
+        time = doc.getString("startTime");
+        type = doc.getString("type");
+        vetName = doc.getString("vetName");
+        dogName = doc.getString("dogName");
+        details = doc.getString("notes");
+        // שמירה של מזהים
+        appointmentId = doc.getString("id");
+        dogId = doc.getString("dogId");
+        vetId = doc.getString("vetId");
+
         View view = getView();
         if (view == null) return;
-        ((TextView) view.findViewById(R.id.textDate)).setText("Date: " + doc.getString("date"));
-        ((TextView) view.findViewById(R.id.textTime)).setText("Time: " + doc.getString("startTime"));
-        ((TextView) view.findViewById(R.id.textVetName)).setText("Veterinarian: " + doc.getString("vetName"));
-        ((TextView) view.findViewById(R.id.textAppointmentType)).setText("Appointment type: " + doc.getString("type"));
-        ((TextView) view.findViewById(R.id.textDogName)).setText("Dog: " + doc.getString("dogName"));
-        ((TextView) view.findViewById(R.id.textDetails)).setText("Notes: " + (doc.getString("notes") == null ? "No additional notes" : doc.getString("notes")));
+        ((TextView) view.findViewById(R.id.textDate)).setText("Date: " + (date != null ? date : ""));
+        ((TextView) view.findViewById(R.id.textTime)).setText("Time: " + (time != null ? time : ""));
+        ((TextView) view.findViewById(R.id.textAppointmentType)).setText("Appointment type: " + (type != null ? type : ""));
+        ((TextView) view.findViewById(R.id.textVetName)).setText("Veterinarian: " + (vetName != null ? vetName : ""));
+        ((TextView) view.findViewById(R.id.textDogName)).setText("Dog: " + (dogName != null ? dogName : ""));
+        ((TextView) view.findViewById(R.id.textDetails)).setText("Notes: " + (details == null || details.isEmpty() ? "No additional notes" : details));
+
+        android.util.Log.d("AppointmentDetails", "updateUIWithAppointment showActions=" + showActions);
+        SharedPreferences prefs = requireActivity().getSharedPreferences("UserProfile", android.content.Context.MODE_PRIVATE);
+        boolean isVet = prefs.getBoolean("isVet", false);
+        
+        // עדכון נראה של הכפתורים בהתאם ל-showActions
+        if (editButton != null) editButton.setVisibility(showActions ? View.VISIBLE : View.GONE);
+        if (deleteButton != null) deleteButton.setVisibility(showActions ? View.VISIBLE : View.GONE);
+        if (markCompletedButton != null) markCompletedButton.setVisibility(showActions && isVet ? View.VISIBLE : View.GONE);
     }
 
     private void markAppointmentCompleted(String appointmentId) {
         String dogId = null;
+        String vetId = null;
         if (getArguments() != null) {
             dogId = getArguments().getString(ARG_DOG_ID, "");
+            vetId = getArguments().getString(ARG_VET_ID, "");
         }
-        if (appointmentId == null || appointmentId.isEmpty() || dogId == null || dogId.isEmpty()) {
-            Toast.makeText(requireContext(), "Missing appointment or dog ID", Toast.LENGTH_SHORT).show();
+        if (appointmentId == null || appointmentId.isEmpty() || dogId == null || dogId.isEmpty() || vetId == null || vetId.isEmpty()) {
+            Toast.makeText(requireContext(), "Missing appointment, dog ID or vet ID", Toast.LENGTH_SHORT).show();
             return;
         }
-        FirebaseFirestore.getInstance().collection("DogProfiles").document(dogId).collection("Appointments").document(appointmentId)
-                .update("completed", true)
-                .addOnSuccessListener(aVoid -> Toast.makeText(requireContext(), "Appointment marked as completed", Toast.LENGTH_SHORT).show())
-                .addOnFailureListener(e -> Toast.makeText(requireContext(), "Failed to update appointment", Toast.LENGTH_SHORT).show());
+        com.example.vetcalls.obj.FirestoreUserHelper.markAppointmentCompletedEverywhere(
+            requireContext(),
+            appointmentId,
+            dogId,
+            vetId,
+            () -> Toast.makeText(requireContext(), "Appointment marked as completed", Toast.LENGTH_SHORT).show(),
+            (error) -> Toast.makeText(requireContext(), "Failed to update appointment: " + error, Toast.LENGTH_SHORT).show()
+        );
     }
 }

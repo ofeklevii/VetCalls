@@ -25,6 +25,8 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.bumptech.glide.Glide;
 import com.google.firebase.firestore.DocumentSnapshot;
+import android.util.Log;
+import java.text.SimpleDateFormat;
 
 import java.util.Calendar;
 import java.util.Date;
@@ -142,56 +144,55 @@ public class PatientDetailsFragment extends Fragment {
         }
         detailsContainer.setVisibility(View.VISIBLE);
         dogsRecyclerView.setVisibility(View.GONE);
-        loadAppointments(dog.ownerId);
+        loadAppointmentHistoryForDog(dog.dogId, dog.name, dog.vetId);
     }
 
-    private void loadAppointments(String ownerId) {
-        db.collection("Appointments")
-                .whereEqualTo("ownerId", ownerId)
-                .orderBy("date", com.google.firebase.firestore.Query.Direction.DESCENDING)
-                .get()
-                .addOnSuccessListener(queryDocumentSnapshots -> {
-                    appointmentsContainer.removeAllViews();
-                    boolean isFirst = true;
-                    boolean hasAppointments = false;
-                    for (QueryDocumentSnapshot doc : queryDocumentSnapshots) {
-                        Map<String, Object> appointmentMap = doc.getData();
-                        if (appointmentMap != null) {
-                            hasAppointments = true;
-                            String date = appointmentMap.get("date") != null ? appointmentMap.get("date").toString() : "";
-                            String time = appointmentMap.get("startTime") != null ? appointmentMap.get("startTime").toString() : "";
-                            String type = appointmentMap.get("type") != null ? appointmentMap.get("type").toString() : "";
-                            String description = appointmentMap.get("notes") != null ? appointmentMap.get("notes").toString() : "";
-
-                            // Set last visit text for the first (most recent) appointment
-                            if (isFirst) {
-                                lastVisitText.setText("Last Visit: " + date + " " + time);
-                                isFirst = false;
-                            }
-
-                            Button appointmentButton = new Button(getContext());
-                            appointmentButton.setText(date + " " + time);
-                            appointmentButton.setPadding(0, 16, 0, 16);
-                            appointmentButton.setOnClickListener(v -> showAppointmentDetails(date, time, type, description));
-                            appointmentsContainer.addView(appointmentButton);
-                        }
-                    }
-                    if (!hasAppointments) {
-                        TextView noAppointments = new TextView(getContext());
-                        noAppointments.setText("No appointments found");
-                        noAppointments.setPadding(0, 16, 0, 16);
-                        appointmentsContainer.addView(noAppointments);
-                        lastVisitText.setText("");
-                    }
-                });
-    }
-
-    private void showAppointmentDetails(String date, String time, String type, String description) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
-        builder.setTitle("Appointment Details");
-        builder.setMessage("Date: " + date + "\nTime: " + time + "\nType: " + type + "\nDescription: " + description);
-        builder.setPositiveButton("OK", (dialog, which) -> dialog.dismiss());
-        builder.show();
+    private void loadAppointmentHistoryForDog(String dogId, String dogName, String vetId) {
+        db.collection("DogProfiles")
+          .document(dogId)
+          .collection("Appointments")
+          .get()
+          .addOnSuccessListener(querySnapshots -> {
+              appointmentsContainer.removeAllViews();
+              boolean hasHistory = false;
+              for (QueryDocumentSnapshot doc : querySnapshots) {
+                  String date = doc.getString("date");
+                  String endTime = doc.getString("endTime");
+                  String type = doc.getString("type");
+                  String notes = doc.getString("notes");
+                  String appointmentId = doc.getString("id");
+                  String vetName = doc.getString("vetName");
+                  String ownerId = doc.getString("ownerId");
+                  String startTime = doc.getString("startTime");
+                  Button appointmentButton = new Button(getContext());
+                  appointmentButton.setText((date != null ? date : "") + " " + (startTime != null ? startTime : "") + " - " + (type != null ? type : ""));
+                  appointmentButton.setOnClickListener(v -> {
+                      Bundle args = new Bundle();
+                      args.putString("appointmentId", appointmentId);
+                      args.putString("date", date);
+                      args.putString("time", startTime);
+                      args.putString("details", notes);
+                      args.putString("veterinarian", vetName);
+                      args.putString("type", type);
+                      args.putString("dogId", dogId);
+                      args.putString("vetId", vetId);
+                      args.putString("dogName", dogName);
+                      com.example.vetcalls.usersFragment.AppointmentDetailsFragment detailsFragment = new com.example.vetcalls.usersFragment.AppointmentDetailsFragment();
+                      detailsFragment.setArguments(args);
+                      requireActivity().getSupportFragmentManager().beginTransaction()
+                          .replace(R.id.fragment_container, detailsFragment)
+                          .addToBackStack(null)
+                          .commit();
+                  });
+                  appointmentsContainer.addView(appointmentButton);
+                  hasHistory = true;
+              }
+              if (!hasHistory) {
+                  TextView noHistory = new TextView(getContext());
+                  noHistory.setText("No appointments found");
+                  appointmentsContainer.addView(noHistory);
+              }
+          });
     }
 
     private void showDogList() {

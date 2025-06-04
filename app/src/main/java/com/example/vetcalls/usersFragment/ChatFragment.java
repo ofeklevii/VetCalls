@@ -277,26 +277,33 @@ public class ChatFragment extends Fragment {
             return;
         }
 
-        // חפש צ'אט קיים עם אותם participants
+        // חפש צ'אט קיים עם אותם participants (בדיוק שניהם)
         db.collection("Chats")
                 .whereArrayContains("participants", currentUserId)
                 .get()
                 .addOnSuccessListener(query -> {
+                    boolean found = false;
                     for (DocumentSnapshot doc : query.getDocuments()) {
-                        String displayName, imageUrl;
-                        if (isVet) {
-                            displayName = doc.getString("dogName");
-                            imageUrl = doc.getString("dogImageUrl");
-                        } else {
-                            displayName = doc.getString("vetName");
-                            imageUrl = doc.getString("vetImageUrl");
+                        List<String> participants = (List<String>) doc.get("participants");
+                        if (participants != null && participants.contains(selectedId) && participants.contains(currentUserId) && participants.size() == 2) {
+                            String displayName, imageUrl;
+                            if (isVet) {
+                                displayName = doc.getString("dogName");
+                                imageUrl = doc.getString("dogImageUrl");
+                            } else {
+                                displayName = doc.getString("vetName");
+                                imageUrl = doc.getString("vetImageUrl");
+                            }
+                            ChatPreview chatPreview = new ChatPreview(doc.getId(), displayName, imageUrl);
+                            openChatFragment(chatPreview);
+                            found = true;
+                            break;
                         }
-                        ChatPreview chatPreview = new ChatPreview(doc.getId(), displayName, imageUrl);
-                        openChatFragment(chatPreview);
-                        return;
                     }
-                    // לא נמצא צ'אט - צור חדש
-                    proceedWithChatCreation(currentUserId, selectedName, selectedId);
+                    if (!found) {
+                        // לא נמצא צ'אט - צור חדש
+                        proceedWithChatCreation(currentUserId, selectedName, selectedId);
+                    }
                 })
                 .addOnFailureListener(e -> {
                     Log.e(TAG, "שגיאה בטעינת צ'אט", e);

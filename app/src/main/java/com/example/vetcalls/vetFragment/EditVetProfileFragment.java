@@ -142,31 +142,32 @@ public class EditVetProfileFragment extends Fragment {
 
     private void loadExistingData() {
         try {
-            // קודם ננסה לקרוא מהפיירסטור
             String vetId = auth.getCurrentUser() != null ? auth.getCurrentUser().getUid() : null;
             if (vetId != null) {
                 db.collection("Veterinarians").document(vetId).get()
-                        .addOnSuccessListener(documentSnapshot -> {
-                            if (documentSnapshot.exists()) {
-                                Veterinarian vet = documentSnapshot.toObject(Veterinarian.class);
-                                if (vet != null) {
-                                    if (vet.fullName != null) editFullName.setText(vet.fullName);
-                                    if (vet.clinicAddress != null) editClinicAddress.setText(vet.clinicAddress);
-                                    if (vet.workHoursFirstPart != null) editWorkHoursFirstPart.setText(vet.workHoursFirstPart);
-                                    if (vet.workHoursSecondPart != null) editWorkHoursSecondPart.setText(vet.workHoursSecondPart);
-                                    if (vet.workHoursThirdPart != null) editWorkHoursThirdPart.setText(vet.workHoursThirdPart);
-                                    if (vet.phoneNumber != null) editPhoneNumber.setText(vet.phoneNumber);
-                                    String imageUrl = vet.profileImageUrl;
-                                    if (imageUrl != null && !imageUrl.isEmpty()) {
-                                        currentProfileImageUrl = imageUrl;
-                                        loadProfileImage(imageUrl);
-                                        SharedPreferences.Editor editor = sharedPreferences.edit();
-                                        editor.putString("profileImageUrl", imageUrl);
-                                        editor.apply();
-                                    }
-                                }
+                    .addOnSuccessListener(documentSnapshot -> {
+                        if (documentSnapshot.exists()) {
+                            // טען את כל השדות מהמסמך
+                            String fullName = documentSnapshot.getString("fullName");
+                            String clinicAddress = documentSnapshot.getString("clinicAddress");
+                            String workHoursFirstPart = documentSnapshot.getString("workHoursFirstPart");
+                            String workHoursSecondPart = documentSnapshot.getString("workHoursSecondPart");
+                            String workHoursThirdPart = documentSnapshot.getString("workHoursThirdPart");
+                            String phoneNumber = documentSnapshot.getString("phoneNumber");
+                            String imageUrl = documentSnapshot.getString("profileImageUrl");
+
+                            if (fullName != null) editFullName.setText(fullName);
+                            if (clinicAddress != null) editClinicAddress.setText(clinicAddress);
+                            if (workHoursFirstPart != null) editWorkHoursFirstPart.setText(workHoursFirstPart);
+                            if (workHoursSecondPart != null) editWorkHoursSecondPart.setText(workHoursSecondPart);
+                            if (workHoursThirdPart != null) editWorkHoursThirdPart.setText(workHoursThirdPart);
+                            if (phoneNumber != null) editPhoneNumber.setText(phoneNumber);
+                            if (imageUrl != null && !imageUrl.isEmpty()) {
+                                currentProfileImageUrl = imageUrl;
+                                loadProfileImage(imageUrl);
                             }
-                        });
+                        }
+                    });
             }
         } catch (Exception e) {
             Log.e(TAG, "Error loading vet data from Firestore", e);
@@ -335,6 +336,8 @@ public class EditVetProfileFragment extends Fragment {
         updates.put("email", profileData.email);
         updates.put("phoneNumber", profileData.phoneNumber);
         updates.put("profileImageUrl", profileData.profileImageUrl);
+        updates.put("isVet", true);
+        updates.put("uid", profileData.uid);
 
         String vetId = auth.getCurrentUser().getUid();
         db.collection("Veterinarians").document(vetId)
@@ -446,6 +449,24 @@ public class EditVetProfileFragment extends Fragment {
                 }
             } catch (Exception e) {
                 Log.e(TAG, "Couldn't update VetHomeFragment", e);
+            }
+
+            // שמור שוב את כל השדות בפיירסטור (כולל התמונה)
+            Map<String, Object> updates = new HashMap<>();
+            updates.put("fullName", profileData.fullName);
+            updates.put("clinicAddress", profileData.clinicAddress);
+            updates.put("workHoursFirstPart", profileData.workHoursFirstPart);
+            updates.put("workHoursSecondPart", profileData.workHoursSecondPart);
+            updates.put("workHoursThirdPart", profileData.workHoursThirdPart);
+            updates.put("email", profileData.email);
+            updates.put("phoneNumber", profileData.phoneNumber);
+            updates.put("profileImageUrl", profileData.profileImageUrl);
+            updates.put("isVet", true);
+            updates.put("uid", profileData.uid);
+            String vetId = auth.getCurrentUser() != null ? auth.getCurrentUser().getUid() : null;
+            if (vetId != null) {
+                db.collection("Veterinarians").document(vetId)
+                    .set(updates, SetOptions.merge());
             }
 
         } catch (Exception e) {

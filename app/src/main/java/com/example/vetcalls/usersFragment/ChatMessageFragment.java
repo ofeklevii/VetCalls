@@ -133,6 +133,7 @@ public class ChatMessageFragment extends Fragment {
             Glide.with(this)
                     .load(recipientImageUrl)
                     .placeholder(R.drawable.user_person_profile_avatar_icon_190943)
+                    .circleCrop()
                     .into(recipientImage);
         }
 
