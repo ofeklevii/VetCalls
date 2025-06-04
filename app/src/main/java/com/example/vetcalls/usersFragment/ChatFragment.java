@@ -35,6 +35,7 @@ public class ChatFragment extends Fragment {
     private FirebaseAuth auth;
     private ChatPreviewAdapter adapter;
     private List<ChatPreview> chatList = new ArrayList<>();
+    private TextView emptyChatsText;
 
     private boolean isVet = false; // יקבע לפי סוג המשתמש
 
@@ -75,6 +76,7 @@ public class ChatFragment extends Fragment {
 
         recyclerView = view.findViewById(R.id.recyclerViewChats);
         startChatFab = view.findViewById(R.id.startChatFab);
+        emptyChatsText = view.findViewById(R.id.emptyChatsText);
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
 
         // אתחול האדפטר עם רשימת צ'אטים ריקה תחילה
@@ -137,7 +139,6 @@ public class ChatFragment extends Fragment {
                             imageUrl = doc.getString("dogImageUrl");
                             String dogId = doc.getString("dogId");
                             if ((displayName == null || displayName.isEmpty() || imageUrl == null || imageUrl.isEmpty()) && dogId != null && !dogId.isEmpty()) {
-                                // נטען את הפרטים מ-DogProfiles
                                 db.collection("DogProfiles").document(dogId).get()
                                         .addOnSuccessListener(dogDoc -> {
                                             String name = dogDoc.getString("name");
@@ -147,6 +148,8 @@ public class ChatFragment extends Fragment {
                                             ChatPreview chatPreview = new ChatPreview(chatId, finalName, finalImg, lastMessage, lastMessageTime);
                                             chatList.add(chatPreview);
                                             adapter.notifyDataSetChanged();
+                                            // עדכון תצוגה
+                                            updateEmptyView();
                                         });
                                 continue;
                             }
@@ -155,6 +158,21 @@ public class ChatFragment extends Fragment {
                         } else {
                             displayName = doc.getString("vetName");
                             imageUrl = doc.getString("vetImageUrl");
+                            String vetId = doc.getString("vetId");
+                            if ((displayName == null || displayName.isEmpty() || imageUrl == null || imageUrl.isEmpty()) && vetId != null && !vetId.isEmpty()) {
+                                db.collection("Veterinarians").document(vetId).get()
+                                        .addOnSuccessListener(vetDoc -> {
+                                            String name = vetDoc.getString("fullName");
+                                            String img = vetDoc.getString("profileImageUrl");
+                                            String finalName = (name != null && !name.isEmpty()) ? name : "וטרינר";
+                                            String finalImg = (img != null && !img.isEmpty()) ? img : "https://example.com/default_vet_image.png";
+                                            ChatPreview chatPreview = new ChatPreview(chatId, finalName, finalImg, lastMessage, lastMessageTime);
+                                            chatList.add(chatPreview);
+                                            adapter.notifyDataSetChanged();
+                                            updateEmptyView();
+                                        });
+                                continue;
+                            }
                             if (displayName == null || displayName.isEmpty()) displayName = "וטרינר";
                             if (imageUrl == null || imageUrl.isEmpty()) imageUrl = "https://example.com/default_vet_image.png";
                         }
@@ -164,6 +182,8 @@ public class ChatFragment extends Fragment {
                         chatList.add(chatPreview);
                     }
                     adapter.notifyDataSetChanged();
+                    // עדכון תצוגה
+                    updateEmptyView();
                 })
                 .addOnFailureListener(e -> {
                     if (e.getMessage() != null && e.getMessage().contains("PERMISSION_DENIED")) {
@@ -173,7 +193,24 @@ public class ChatFragment extends Fragment {
                     if (context != null) {
                         Toast.makeText(context, "אין לך עדיין צ'אטים, צרי שיחה חדשה!", Toast.LENGTH_LONG).show();
                     }
+                    // עדכון תצוגה
+                    if (emptyChatsText != null && recyclerView != null) {
+                        recyclerView.setVisibility(View.GONE);
+                        emptyChatsText.setVisibility(View.VISIBLE);
+                    }
                 });
+    }
+
+    private void updateEmptyView() {
+        if (emptyChatsText != null && recyclerView != null) {
+            if (chatList.isEmpty()) {
+                recyclerView.setVisibility(View.GONE);
+                emptyChatsText.setVisibility(View.VISIBLE);
+            } else {
+                recyclerView.setVisibility(View.VISIBLE);
+                emptyChatsText.setVisibility(View.GONE);
+            }
+        }
     }
 
     private void openNewChatDialog() {
