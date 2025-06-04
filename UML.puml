@@ -1,0 +1,983 @@
+@startuml
+class com.example.vetcalls.obj.NotificationHelper {
+- {static} String CHANNEL_ID
+- {static} String CHANNEL_NAME
+- Context context
++ <<Create>> NotificationHelper(Context)
+- void createNotificationChannel()
++ void scheduleNotification(Context,String,String,long)
+- void openExactAlarmSettings(Context)
++ void cancelNotification(Context,int)
+}
+
+note left of com.example.vetcalls.obj.NotificationHelper::createNotificationChannel()
+ יצירת ערוץ התראות (לאנדרואיד 8 ומעלה)
+end note
+note right of com.example.vetcalls.obj.NotificationHelper::openExactAlarmSettings(Context)
+ פתיחת הגדרות הרשאות התראות
+end note
+note left of com.example.vetcalls.obj.NotificationHelper::cancelNotification(Context,int)
+ ביטול התראה שתוזמנה
+end note
+
+class com.example.vetcalls.obj.Veterinarian {
++ String fullName
++ String clinicAddress
++ String workHoursFirstPart
++ String workHoursSecondPart
++ String workHoursThirdPart
++ String profileImageUrl
++ String email
++ String phoneNumber
++ boolean isVet
++ String uid
++ <<Create>> Veterinarian()
++ <<Create>> Veterinarian(String,String,String,String,String,String,String,String,boolean,String)
+}
+
+
+class com.example.vetcalls.obj.MessageViewHolder {
++ LinearLayout messageContainer
++ LinearLayout messageBubble
++ TextView textMessage
++ ImageView imageMessage
++ VideoView videoMessage
++ TextView messageTime
++ TextView dateHeader
++ <<Create>> MessageViewHolder(View)
+}
+
+
+class com.example.vetcalls.activities.LoginActivity {
+- FirebaseAuth firebaseAuth
+- SharedPreferences sharedPreferences
+# void onCreate(Bundle)
+- void checkUserType(String)
+- void createUserDocument(String)
+}
+
+
+class com.example.vetcalls.obj.Appointment {
++ String id
++ String date
++ String startTime
++ String endTime
++ String type
++ String dogId
++ String dogName
++ String vetId
++ String vetName
++ String ownerId
++ boolean isCompleted
++ String notes
++ com.google.firebase.Timestamp reminder1
++ com.google.firebase.Timestamp reminder2
++ <<Create>> Appointment()
++ <<Create>> Appointment(String,String,String,String,String,String,String,String,String,String,boolean,String,com.google.firebase.Timestamp,com.google.firebase.Timestamp)
++ <<Create>> Appointment(String,String,String,String)
+}
+
+
+class com.example.vetcalls.usersFragment.HomeFragment {
+- {static} String TAG
+- TextView bioTextView
+- ImageView profilePic
+- RecyclerView dogRecyclerView
+- DogProfileAdapter adapter
+- List<DogProfile> dogList
+- SharedPreferences sharedPreferences
+- DogProfile currentDogProfile
++ View onCreateView(LayoutInflater,ViewGroup,Bundle)
+- void initializeUiComponents(View)
+- void setupButtons(View)
+- Bundle createEditProfileArgs()
+- void launchEditProfileFragment(Bundle)
+- void setupRecyclerView(View)
+- void setupFragmentResultListener()
+- DogProfile createDogFromBundle(Bundle)
+- void updateDogInList(DogProfile)
+- void saveDogToPreferences(DogProfile)
+- void saveDogsListToPreferences(List<DogProfile>)
+- List<DogProfile> loadDogsListFromPreferences()
+- void showDeleteAccountDialog()
+- void loadProfileImage(ImageView,String)
+- String getBestImageUrl(String)
+- void clearTopProfileDisplay()
+- void loadAllDogProfilesFromFirestore()
+- void loadDogsFromDogProfiles(List<String>)
+- void incrementCounterAndCheckCompletion(int[],int,List<DogProfile>)
+- boolean isDuplicate(List<DogProfile>,DogProfile)
+- void markAsCurrentIfNeeded(DogProfile)
+- void organizeDogsAndUpdateUI()
+- void ensureCurrentDogIsSet()
+- List<DogProfile> createFilteredList()
+- void updateDogDisplay(DogProfile)
+- String createBioText(DogProfile)
+- void addIfNotEmpty(StringBuilder,String,String,String)
+- DogProfile createDogProfileFromDocument(DocumentSnapshot)
+- String extractStringOrNumber(DocumentSnapshot,String,String)
++ void onDogClick(int)
++ void onResume()
+- void updateFromPreferences()
+}
+
+note left of com.example.vetcalls.usersFragment.HomeFragment::saveDogsListToPreferences(List<DogProfile>)
+ שמירת רשימת הכלבים המלאה לזיכרון המקומי
+end note
+note right of com.example.vetcalls.usersFragment.HomeFragment::loadDogsListFromPreferences()
+ טעינת רשימת הכלבים מהזיכרון המקומי
+end note
+note left of com.example.vetcalls.usersFragment.HomeFragment::showDeleteAccountDialog()
+ Show confirmation dialog for account deletion
+end note
+note right of com.example.vetcalls.usersFragment.HomeFragment::loadProfileImage(ImageView,String)
+ Helper method to load profile image
+end note
+note left of com.example.vetcalls.usersFragment.HomeFragment::getBestImageUrl(String)
+ Helper method to get best available image URL
+end note
+note right of com.example.vetcalls.usersFragment.HomeFragment::clearTopProfileDisplay()
+ Clear top profile display
+end note
+note left of com.example.vetcalls.usersFragment.HomeFragment::loadAllDogProfilesFromFirestore()
+ Load all dog profiles from Firestore
+end note
+note right of com.example.vetcalls.usersFragment.HomeFragment::loadDogsFromDogProfiles(List<String>)
+ Load dogs from DogProfiles collection
+end note
+note left of com.example.vetcalls.usersFragment.HomeFragment::organizeDogsAndUpdateUI()
+ Organize dogs and update UI
+end note
+note right of com.example.vetcalls.usersFragment.HomeFragment::updateDogDisplay(DogProfile)
+ Update dog display in the top section
+end note
+note left of com.example.vetcalls.usersFragment.HomeFragment::createDogProfileFromDocument(DocumentSnapshot)
+ Create dog profile from document
+end note
+note right of com.example.vetcalls.usersFragment.HomeFragment::onDogClick(int)
+ Handle dog click in RecyclerView
+end note
+note left of com.example.vetcalls.usersFragment.HomeFragment::onResume()
+ Handle resume event
+end note
+note right of com.example.vetcalls.usersFragment.HomeFragment::updateFromPreferences()
+ Update UI from SharedPreferences
+end note
+
+class com.example.vetcalls.ExampleUnitTest {
++ void addition_isCorrect()
+}
+note top of com.example.vetcalls.ExampleUnitTest
+
+ * Example local unit test, which will execute on the development machine (host).
+ *
+ * @see <a href="http://d.android.com/tools/testing">Testing documentation</a>
+ 
+end note
+
+
+class com.example.vetcalls.obj.BootReceiver {
++ void onReceive(Context,Intent)
+}
+
+class com.example.vetcalls.activities.SignUpActivity {
+- EditText emailEditText
+- {static} Pattern EMAIL_PATTERN
+# void onCreate(Bundle)
+- boolean isValidEmail(String)
+}
+note left of com.example.vetcalls.activities.SignUpActivity::EMAIL_PATTERN
+ ביטוי רגולרי לבדיקת פורמט אימייל תקין (כולל דומיין)
+end note
+
+
+class com.example.vetcalls.obj.ChatViewHolder {
++ ImageView image
++ TextView name
++ <<Create>> ChatViewHolder(View)
+}
+
+
+class com.example.vetcalls.usersFragment.AppointmentViewHolder {
+~ TextView dateTextView
++ <<Create>> AppointmentViewHolder(View)
+}
+
+
+class com.example.vetcalls.ExampleInstrumentedTest {
++ void useAppContext()
+}
+note top of com.example.vetcalls.ExampleInstrumentedTest
+
+ * Instrumented test, which will execute on an Android device.
+ *
+ * @see <a href="http://d.android.com/tools/testing">Testing documentation</a>
+ 
+end note
+
+
+class com.example.vetcalls.obj.MessageAdapter {
+- Context context
+- ArrayList<Message> messageList
+- String currentUserId
+- SimpleDateFormat timeFormat
+- SimpleDateFormat dateFormat
++ <<Create>> MessageAdapter(Context,ArrayList<Message>,String)
++ MessageViewHolder onCreateViewHolder(ViewGroup,int)
++ void onBindViewHolder(MessageViewHolder,int)
+- boolean isSameDay(Date,Date)
+- String getDateHeader(Date)
++ int getItemCount()
+- void showFullScreenMedia(String,String)
+}
+
+
+class com.example.vetcalls.activities.HomeActivity {
+# void onCreate(Bundle)
+}
+
+class com.example.vetcalls.activities.ForgotPasswordActivity {
+- EditText emailInput
+- Button submitButton
+- FirebaseAuth firebaseAuth
+- DatabaseReference databaseReference
+# void onCreate(Bundle)
+- void handlePasswordReset()
+}
+
+
+class com.example.vetcalls.usersFragment.ChatFragment {
+- {static} String TAG
+- RecyclerView recyclerView
+- FloatingActionButton startChatFab
+- FirebaseFirestore db
+- FirebaseAuth auth
+- ChatPreviewAdapter adapter
+- List<ChatPreview> chatList
+- boolean isVet
++ <<Create>> ChatFragment()
++ void onCreate(Bundle)
++ View onCreateView(LayoutInflater,ViewGroup,Bundle)
++ void onResume()
+- void updateAdapterUserType()
+- void openChatFragment(ChatPreview)
+- void loadChatList()
+- void openNewChatDialog()
+- void showSelectionDialog(List<String>,Map<String,String>)
+- void createNewChat(String,String)
+- void proceedWithChatCreation(String,String,String)
+- void saveChatToFirestore(String,String,String,String,String,String,String)
+- void createChatDocument(String,Map<String,Object>)
++ {static} void initializeUserChats(String,boolean,FirebaseFirestore)
+}
+note left of com.example.vetcalls.usersFragment.ChatFragment::isVet
+ יקבע לפי סוג המשתמש
+end note
+
+note left of com.example.vetcalls.usersFragment.ChatFragment::initializeUserChats(String,boolean,FirebaseFirestore)
+ מתודה לקריאה כאשר המשתמש מתחבר לאתחול קולקשיין הצ'אטים שלו
+end note
+
+class com.example.vetcalls.obj.ChatPreviewAdapter {
+- List<ChatPreview> chatList
+- OnChatClickListener listener
++ <<Create>> ChatPreviewAdapter(List<ChatPreview>,OnChatClickListener)
++ ChatViewHolder onCreateViewHolder(ViewGroup,int)
++ void onBindViewHolder(ChatViewHolder,int)
++ int getItemCount()
+}
+
+
+interface com.example.vetcalls.obj.ChatPreviewAdapter$OnChatClickListener {
+~ void onChatClick(ChatPreview)
+}
+
+class com.example.vetcalls.activities.SignUpPasswordActivity {
+- EditText passwordEditText
+- Switch vetSwitch
+- FirebaseAuth firebaseAuth
+# void onCreate(Bundle)
+- boolean isValidPassword(String)
+}
+
+
+class com.example.vetcalls.usersFragment.ChatMessageFragment {
+- {static} String TAG
+- {static} String ARG_CHAT_ID
+- {static} String ARG_RECIPIENT_NAME
+- {static} String ARG_RECIPIENT_IMAGE
+- {static} String ARG_IS_VET
+- ImageView recipientImage
+- TextView recipientName
+- RecyclerView messagesRecyclerView
+- EditText messageInput
+- FloatingActionButton sendButton
+- ImageButton attachButton
+- FirebaseFirestore db
+- FirebaseAuth auth
+- String chatId
+- String recipientDisplayName
+- String recipientImageUrl
+- String currentUserId
+- ArrayList<Message> messageList
+- MessageAdapter messageAdapter
+- boolean isVet
+- FrameLayout mediaPreviewLayout
+- ImageView imagePreview
+- VideoView videoPreview
+- ImageButton closeMediaButton
+- Uri selectedMediaUri
+- String selectedMediaType
+- {static} int REQUEST_IMAGE_PICK
+- {static} int REQUEST_VIDEO_PICK
+- {static} int REQUEST_CAMERA
++ {static} ChatMessageFragment newInstance(String,String,String,boolean)
++ void onCreate(Bundle)
++ View onCreateView(LayoutInflater,ViewGroup,Bundle)
++ void onViewCreated(View,Bundle)
+- void listenForMessages()
+- void sendMessage()
+- void sendNotification(String)
+- void showAttachmentOptions()
++ void onActivityResult(int,int,Intent)
+- void showMediaPreview()
+- Uri getImageUri(Context,Bitmap)
+- void sendMediaMessage()
+}
+note left of com.example.vetcalls.usersFragment.ChatMessageFragment::mediaPreviewLayout
+ --- משתנים למדיה ---
+end note
+note right of com.example.vetcalls.usersFragment.ChatMessageFragment::selectedMediaType
+ "image" / "video"
+end note
+
+
+class com.example.vetcalls.obj.DogProfile {
++ String dogId
++ String name
++ String age
++ String bio
++ String profileImageUrl
++ String race
++ String birthday
++ String weight
++ String allergies
++ String vaccines
++ String ownerId
++ String vetId
++ String vetName
++ long lastVetChange
++ long lastUpdated
++ boolean isCurrent
++ <<Create>> DogProfile()
++ String toString()
++ boolean equals(Object)
++ int hashCode()
++ String getId()
++ void setCurrent(boolean)
+}
+note top of com.example.vetcalls.obj.DogProfile
+
+ * מחלקה המייצגת פרופיל של כלב באפליקציה
+ 
+end note
+
+note left of com.example.vetcalls.obj.DogProfile::age
+ נשמר כ-String אבל יכול להיות גם Long בפיירסטור
+end note
+
+
+class com.example.vetcalls.vetFragment.VetHomeFragment {
+- ImageView vetProfileImage
+- TextView vetFullName
+- Button editProfileButton
+- FirebaseFirestore db
+- FirebaseAuth auth
+- SharedPreferences sharedPreferences
+- {static} String TAG
++ View onCreateView(LayoutInflater,ViewGroup,Bundle)
++ void onResume()
++ void updateProfileView()
+- void loadVetProfileFromServer()
+- String extractStringOrNumber(DocumentSnapshot,String,String)
+- void updateUIWithProfileData(Map<String,Object>)
+- void loadProfileImage(String)
+- String getBestImageUrl(String)
+- void saveVetProfileToSharedPreferences(Map<String,Object>)
+- void loadVetProfileFromSharedPreferences()
+- void openEditProfileFragment()
+}
+
+note left of com.example.vetcalls.vetFragment.VetHomeFragment::updateProfileView()
+
+     * שיטה חדשה - מעדכנת את תצוגת הפרופיל מיד
+     * שיטה זו נקראת מ-EditVetProfileFragment כאשר משתמש שומר שינויים
+     
+end note
+note right of com.example.vetcalls.vetFragment.VetHomeFragment::loadProfileImage(String)
+ שיטה משופרת לטעינת תמונת פרופיל
+end note
+note left of com.example.vetcalls.vetFragment.VetHomeFragment::getBestImageUrl(String)
+ שיטה לקבלת כתובת התמונה הטובה ביותר
+end note
+note right of com.example.vetcalls.vetFragment.VetHomeFragment::saveVetProfileToSharedPreferences(Map<String,Object>)
+ שמירת נתוני הפרופיל בזיכרון המקומי
+end note
+note left of com.example.vetcalls.vetFragment.VetHomeFragment::loadVetProfileFromSharedPreferences()
+ טעינת נתוני הפרופיל מהזיכרון המקומי
+end note
+
+class com.example.vetcalls.usersFragment.AppointmentDetailsFragment {
+- {static} String ARG_DATE
+- {static} String ARG_TIME
+- {static} String ARG_DETAILS
+- {static} String ARG_VETERINARIAN
+- {static} String ARG_TYPE
+- {static} String ARG_APPOINTMENT_ID
+- {static} String ARG_DOG_ID
+- {static} String ARG_VET_ID
+- {static} String ARG_DOG_NAME
++ {static} AppointmentDetailsFragment newInstance(String,String,String,String,String)
++ {static} AppointmentDetailsFragment newInstanceFull(String,String,String,String,String,String,String,String,String)
++ {static} AppointmentDetailsFragment newInstance(String,String,String,String)
++ View onCreateView(LayoutInflater,ViewGroup,Bundle)
+- void editAppointment(String,String,String,String)
+- void showDeleteConfirmation(String,String,String)
+- void deleteAppointment(String,String,String)
+- void updateUIWithAppointment(DocumentSnapshot)
+- void markAppointmentCompleted(String)
+}
+note left of com.example.vetcalls.usersFragment.AppointmentDetailsFragment::ARG_APPOINTMENT_ID
+ פרמטרים נוספים לעריכה ומחיקה
+end note
+
+note left of com.example.vetcalls.usersFragment.AppointmentDetailsFragment::newInstance(String,String,String,String,String)
+ מתודה קיימת - תאימות לאחור
+end note
+note right of com.example.vetcalls.usersFragment.AppointmentDetailsFragment::newInstanceFull(String,String,String,String,String,String,String,String,String)
+ מתודה חדשה עם כל הפרטים לעריכה ומחיקה
+end note
+note left of com.example.vetcalls.usersFragment.AppointmentDetailsFragment::newInstance(String,String,String,String)
+ מתודת עזר לתאימות לאחור
+end note
+
+class com.example.vetcalls.chat.Message {
+- String senderId
+- Date timestamp
+- String type
+- String content
++ <<Create>> Message()
++ <<Create>> Message(String,Date,String,String)
++ String getSenderId()
++ void setSenderId(String)
++ Date getTimestamp()
++ void setTimestamp(Date)
++ String getType()
++ void setType(String)
++ String getContent()
++ void setContent(String)
+}
+note left of com.example.vetcalls.chat.Message::type
+ "text", "image", "video"
+end note
+
+
+class com.example.vetcalls.obj.VetItem {
+- String id
++ <<Create>> VetItem(String,String)
++ String getId()
++ String getName()
++ String toString()
+}
+
+
+class com.example.vetcalls.obj.DogProfileViewHolder {
+~ ImageView dogImage
+~ TextView dogName
+- {static} String VIEW_HOLDER_TAG
++ <<Create>> DogProfileViewHolder(View)
+}
+
+
+class com.example.vetcalls.usersFragment.EditProfileFragment {
+- {static} String TAG
+- EditText editName
+- Button saveButton
+- ImageView editProfilePic
+- SharedPreferences sharedPreferences
+- FirebaseFirestore db
+- FirebaseAuth auth
+- Uri selectedImageUri
+- {static} int REQUEST_IMAGE_PICK
+- {static} int REQUEST_IMAGE_CAPTURE
+- String dogId
+- boolean isNewDog
+- String downloadUrl
+- Spinner vetSpinner
+- List<String> vetNames
+- Map<String,String> vetNameToId
+- String selectedVetId
+- String selectedVetName
+- long lastVetChange
+- String originalVetId
++ View onCreateView(LayoutInflater,ViewGroup,Bundle)
+- void loadVetList()
+- void loadProfileImage(ImageView,String)
+- void clearAllFields()
+- void loadDogDataFromFirestore(String)
+- void saveProfile()
+- String buildBio(String,String,String)
+- void finishSaveProcess(String,String,String,String,String,String,String,String)
+- String calculateDogAge(String)
+- void showImagePickerDialog()
+- void pickImageFromGallery()
+- void takePhotoWithCamera()
++ void onActivityResult(int,int,Intent)
+- Uri getImageUriFromBitmap(Context,Bitmap)
+- void uploadImageToFirebase(Uri)
+- String extractStringOrNumber(DocumentSnapshot,String,String)
+}
+note left of com.example.vetcalls.usersFragment.EditProfileFragment::downloadUrl
+ Store download URL for the image
+end note
+note right of com.example.vetcalls.usersFragment.EditProfileFragment::lastVetChange
+ Per-dog, loaded from Firestore
+end note
+
+note left of com.example.vetcalls.usersFragment.EditProfileFragment::loadProfileImage(ImageView,String)
+ פונקציה חדשה לטעינת תמונת פרופיל בצורה אחידה
+end note
+note right of com.example.vetcalls.usersFragment.EditProfileFragment::clearAllFields()
+ Clear all fields
+end note
+note left of com.example.vetcalls.usersFragment.EditProfileFragment::loadDogDataFromFirestore(String)
+ Load dog data from Firestore
+end note
+note right of com.example.vetcalls.usersFragment.EditProfileFragment::saveProfile()
+ Save profile
+end note
+note left of com.example.vetcalls.usersFragment.EditProfileFragment::buildBio(String,String,String)
+ Build bio from data
+end note
+note right of com.example.vetcalls.usersFragment.EditProfileFragment::finishSaveProcess(String,String,String,String,String,String,String,String)
+ Finish save process
+end note
+note left of com.example.vetcalls.usersFragment.EditProfileFragment::calculateDogAge(String)
+ Calculate dog age from birth date
+end note
+note right of com.example.vetcalls.usersFragment.EditProfileFragment::showImagePickerDialog()
+ Open dialog to choose image
+end note
+note left of com.example.vetcalls.usersFragment.EditProfileFragment::pickImageFromGallery()
+ Pick image from gallery
+end note
+note right of com.example.vetcalls.usersFragment.EditProfileFragment::takePhotoWithCamera()
+ Take photo with camera
+end note
+note left of com.example.vetcalls.usersFragment.EditProfileFragment::onActivityResult(int,int,Intent)
+ Handle image selection result
+end note
+note right of com.example.vetcalls.usersFragment.EditProfileFragment::getImageUriFromBitmap(Context,Bitmap)
+ Convert Bitmap to URI
+end note
+note left of com.example.vetcalls.usersFragment.EditProfileFragment::uploadImageToFirebase(Uri)
+ Upload image to Firebase Storage - שיפור הטיפול בתמונה
+end note
+
+class com.example.vetcalls.usersFragment.CalendarFragment {
+- {static} String TAG
+- CalendarView calendarView
+- RecyclerView appointmentsRecyclerView
+- AppointmentAdapter appointmentAdapter
+- List<Map<String,Object>> appointmentList
+- FirebaseFirestore db
+- boolean isVet
+- SharedPreferences sharedPreferences
+- String selectedDate
+- String userId
+- Button addAppointmentButton
++ View onCreateView(LayoutInflater,ViewGroup,Bundle)
+- void initViews(View)
+- void initData()
+- void setupCalendar()
+- void setupAddButton()
+- void openAddAppointmentFragment()
+- void loadAppointments(String)
+- void loadVetAppointments(String)
+- void loadPatientAppointments(String)
+- void updateUI()
+- void showEmptyView(String)
+- void showAppointmentsView()
+- String getTodayDateString()
++ void onResume()
+}
+
+
+class com.example.vetcalls.vetFragment.EditVetProfileFragment {
+- {static} String TAG
+- {static} int REQUEST_IMAGE_PICK
+- {static} int REQUEST_IMAGE_CAPTURE
+- {static} int PERMISSIONS_REQUEST_CODE
+- ImageView profileImage
+- EditText editFullName
+- Bitmap selectedImageBitmap
+- Uri selectedImageUri
+- AlertDialog loadingDialog
+- boolean isUploading
+- String currentProfileImageUrl
+- FirebaseFirestore db
+- FirebaseAuth auth
+- SharedPreferences sharedPreferences
++ View onCreateView(LayoutInflater,ViewGroup,Bundle)
+- void initializeFirebase()
+- void initializeUI(View)
+- boolean checkPermissions()
+- void requestPermissions()
++ void onRequestPermissionsResult(int,String[],int[])
+- void loadExistingData()
+- void loadProfileImage(String)
+- void showImagePickerDialog()
++ void onActivityResult(int,int,Intent)
+- Uri getImageUriFromBitmap(Bitmap)
+- void saveProfileChanges()
+- void updateFirestoreData(Veterinarian)
+- void saveBasicDataToSharedPreferences(Veterinarian)
+- void uploadProfileImageUsingHelper(Uri,Veterinarian)
+- void finishProfileUpdate(Veterinarian)
+- void navigateToVetHome()
+}
+note left of com.example.vetcalls.vetFragment.EditVetProfileFragment::selectedImageUri
+ Added to store the URI directly for FirestoreUserHelper
+end note
+note right of com.example.vetcalls.vetFragment.EditVetProfileFragment::currentProfileImageUrl
+ Keep track of current image URL
+end note
+
+note left of com.example.vetcalls.vetFragment.EditVetProfileFragment::loadProfileImage(String)
+ שיטה משופרת לטעינת תמונת פרופיל
+end note
+note right of com.example.vetcalls.vetFragment.EditVetProfileFragment::getImageUriFromBitmap(Bitmap)
+ Helper method to convert bitmap to URI
+end note
+note left of com.example.vetcalls.vetFragment.EditVetProfileFragment::uploadProfileImageUsingHelper(Uri,Veterinarian)
+ New method using FirestoreUserHelper instead of direct implementation
+end note
+note right of com.example.vetcalls.vetFragment.EditVetProfileFragment::navigateToVetHome()
+ פונקציה חדשה: חזרה ל-VetHomeFragment
+end note
+
+class com.example.vetcalls.obj.ChatPreview {
++ String chatId
++ String displayName
++ String imageUrl
++ String lastMessage
++ Date lastMessageTime
++ <<Create>> ChatPreview()
++ <<Create>> ChatPreview(String,String,String)
++ <<Create>> ChatPreview(String,String,String,String,Date)
+}
+
+
+class com.example.vetcalls.usersFragment.AppointmentAdapter {
+- List<Map<String,Object>> appointmentList
+- FragmentActivity activity
++ <<Create>> AppointmentAdapter(List<Map<String,Object>>,FragmentActivity)
++ AppointmentViewHolder onCreateViewHolder(ViewGroup,int)
++ void onBindViewHolder(AppointmentViewHolder,int)
++ int getItemCount()
++ void updateAppointments(List<Map<String,Object>>)
+}
+
+note left of com.example.vetcalls.usersFragment.AppointmentAdapter::updateAppointments(List<Map<String,Object>>)
+ עדכון רשימת התורים כשיש מידע חדש
+end note
+
+class com.example.vetcalls.obj.FirestoreUserHelper {
+- {static} String TAG
+- {static} FirebaseFirestore db
+- {static} FirebaseStorage storage
++ {static} void createUser(FirebaseUser,boolean,String)
++ {static} void uploadVetProfileImage(Uri,String,OnImageUploadListener)
++ {static} void addDogProfile(String,String,String,String,String,String,String,String,String,String,String,String,long)
+- {static} void updateUserDogReferences(String,String,String)
++ {static} void uploadDogProfileImage(Uri,String,String,OnImageUploadListener)
++ {static} void addAppointment(String,Map<String,Object>)
++ {static} void deleteAppointment(String,String,String)
++ {static} void deleteAppointmentCompletely(String,String,String,Runnable,java.util.function.Consumer<String>)
++ {static} void addReminderToUser(String,String,Map<String,Object>)
++ {static} void deleteUserCompletely(String,Runnable,Runnable)
+- {static} void deleteUserData(String,List<String>,Runnable,Runnable)
++ {static} void updateDogProfileEverywhere(DogProfile)
+}
+
+note left of com.example.vetcalls.obj.FirestoreUserHelper::createUser(FirebaseUser,boolean,String)
+ יצירת משתמש או וטרינר
+end note
+note right of com.example.vetcalls.obj.FirestoreUserHelper::uploadVetProfileImage(Uri,String,OnImageUploadListener)
+ העלאת תמונת פרופיל של וטרינר
+end note
+note left of com.example.vetcalls.obj.FirestoreUserHelper::addDogProfile(String,String,String,String,String,String,String,String,String,String,String,String,long)
+ הוספת פרופיל כלב - רק לאוסף DogProfiles
+end note
+note right of com.example.vetcalls.obj.FirestoreUserHelper::updateUserDogReferences(String,String,String)
+ עדכון רשימת הכלבים של המשתמש
+end note
+note left of com.example.vetcalls.obj.FirestoreUserHelper::uploadDogProfileImage(Uri,String,String,OnImageUploadListener)
+ העלאת תמונת פרופיל של כלב
+end note
+note right of com.example.vetcalls.obj.FirestoreUserHelper::deleteAppointment(String,String,String)
+ מחיקת פגישה
+end note
+note left of com.example.vetcalls.obj.FirestoreUserHelper::deleteAppointmentCompletely(String,String,String,Runnable,java.util.function.Consumer<String>)
+ הוספת פונקציה חדשה למחיקה מלאה של תור עם callback-ים
+end note
+note right of com.example.vetcalls.obj.FirestoreUserHelper::deleteUserData(String,List<String>,Runnable,Runnable)
+ פונקציה נפרדת למחיקת נתוני המשתמש לאחר מחיקת התמונות
+end note
+note left of com.example.vetcalls.obj.FirestoreUserHelper::updateDogProfileEverywhere(DogProfile)
+
+     * עדכון גלובלי של פרופיל כלב בכל המקומות הרלוונטיים במערכת
+     
+end note
+
+interface com.example.vetcalls.obj.FirestoreUserHelper$OnImageUploadListener {
+~ void onUploadSuccess(String)
+~ void onUploadFailed(Exception)
+}
+
+class com.example.vetcalls.usersFragment.AddAppointmentFragment {
+- {static} String TAG
+- FirebaseFirestore db
+- TextView dateTextView
+- Spinner appointmentTypeSpinner
+- EditText notesEditText
+- Button timeButton
+- String selectedDate
+- String selectedTime
+- boolean isVet
+- long appointmentDurationMinutes
+- NotificationHelper notificationHelper
++ View onCreateView(LayoutInflater,ViewGroup,Bundle)
++ void onViewCreated(View,Bundle)
+- void initViews(View)
+- void initData()
+- void setupArguments()
+- void setupSpinners()
+- void setupListeners()
+- void loadAppointmentDataFromArguments()
+- void loadAppointmentDataFromFirestore()
+- void updateDogSpinnerSelection(String)
+- void updateVetSpinnerSelection(String)
+- void saveAppointment()
+- boolean validateInputs()
+- void checkIfTimeChangedAndValidate()
+- void validateNewTimeAndSave()
+- void proceedWithSave()
+- Map<String,Object> createAppointmentData()
+- void addReminders(Map<String,Object>)
+- void createReminder(String,long)
+- void calculateEndTime()
+- int convertTimeToMinutes(String)
+- String convertMinutesToTime(int)
+- void updateAppointmentDuration(String)
+- void updateTimeSpinnerVisibility()
+- void setupAppointmentTypeSpinner()
+- void setupReminderSpinners()
+- void loadDogs()
+- void setDogAdapter(ArrayList<DogItem>)
+- void loadVets()
+- void setSpinnerSelection(Spinner,String)
+- long getReminderTime(String,long)
+}
+note left of com.example.vetcalls.usersFragment.AddAppointmentFragment::dateTextView
+ UI Components
+end note
+note right of com.example.vetcalls.usersFragment.AddAppointmentFragment::selectedDate
+ Data variables
+end note
+
+note left of com.example.vetcalls.usersFragment.AddAppointmentFragment::calculateEndTime()
+ Helper methods
+end note
+
+class com.example.vetcalls.activities.VetHomeActivity {
+- BottomNavigationView bottomNavigationView
+# void onCreate(Bundle)
+}
+
+
+class com.example.vetcalls.usersFragment.HistoryFragment {
+- RecyclerView recyclerView
+- AppointmentAdapter adapter
+- List<Map<String,Object>> appointmentList
+- TextView emptyHistoryText
+- FirebaseFirestore db
+- String userId
++ View onCreateView(LayoutInflater,ViewGroup,Bundle)
++ void onResume()
+- void loadCompletedAppointments()
+- void showEmptyState()
+- void hideEmptyState()
+}
+
+
+class com.example.vetcalls.obj.User {
++ String email
++ Boolean isVet
++ String userId
++ <<Create>> User()
++ <<Create>> User(String,Boolean,String)
+}
+
+
+class com.example.vetcalls.obj.DogItem {
+- String id
++ <<Create>> DogItem(String,String)
++ String getId()
++ String getName()
++ String toString()
+}
+
+
+class com.example.vetcalls.obj.ReminderReceiver {
+- {static} String CHANNEL_ID
++ void onReceive(Context,Intent)
+}
+
+
+class com.example.vetcalls.usersFragment.AddDogProfileFragment {
+- {static} String TAG
+- {static} int REQUEST_IMAGE_PICK
+- {static} int REQUEST_IMAGE_CAPTURE
+- EditText editName
+- Button changeProfilePicButton
+- ImageView editProfilePic
+- Uri selectedImageUri
+- FirebaseAuth auth
+- FirebaseFirestore db
+- SharedPreferences sharedPreferences
+- String dogId
+- String selectedVetId
+- String selectedVetName
+- Spinner vetSpinner
+- List<String> vetNames
+- Map<String,String> vetNameToId
+- long lastVetChange
++ <<Create>> AddDogProfileFragment()
++ View onCreateView(LayoutInflater,ViewGroup,Bundle)
+- void loadVetList()
+- void saveDogProfile()
+- void navigateBack()
+- String calculateDogAge(String)
+- String buildBio(String,String,String,String)
+- void showImagePickerDialog()
+- void pickImageFromGallery()
+- void takePhoto()
++ void onActivityResult(int,int,Intent)
+- Uri getImageUriFromBitmap(Bitmap)
+- void uploadImageToFirebase(Uri,String,String)
+}
+note left of com.example.vetcalls.usersFragment.AddDogProfileFragment::lastVetChange
+ Per-dog, for new dog
+end note
+
+note left of com.example.vetcalls.usersFragment.AddDogProfileFragment::navigateBack()
+ פונקציה חדשה לחזרה למסך הקודם
+end note
+
+class com.example.vetcalls.obj.DogProfileAdapter {
+- {static} String TAG
+- List<DogProfile> dogList
+- Context context
+- DogProfile currentDog
+- OnDogClickListener onDogClickListener
+- int baseIndex
++ <<Create>> DogProfileAdapter(Context,List<DogProfile>,OnDogClickListener,int)
++ void setCurrentDog(DogProfile)
++ DogProfileViewHolder onCreateViewHolder(ViewGroup,int)
++ void onBindViewHolder(DogProfileViewHolder,int)
+- void updateProfile(DogProfile)
++ void updateDogList(List<DogProfile>)
++ int getItemCount()
+}
+note left of com.example.vetcalls.obj.DogProfileAdapter::currentDog
+ פרופיל הכלב הנוכחי המוצג למעלה
+end note
+note right of com.example.vetcalls.obj.DogProfileAdapter::onDogClickListener
+ ממשק מאזין לחיצות
+end note
+
+note left of com.example.vetcalls.obj.DogProfileAdapter::setCurrentDog(DogProfile)
+ הגדרת הכלב הנוכחי המוצג למעלה - כעת רק מסמן את הכלב אבל לא מוציא אותו מהרשימה
+end note
+note right of com.example.vetcalls.obj.DogProfileAdapter::updateDogList(List<DogProfile>)
+ עדכון רשימת הכלבים
+end note
+
+interface com.example.vetcalls.obj.DogProfileAdapter$OnDogClickListener {
+~ void onDogClick(int)
+}
+note top of com.example.vetcalls.obj.DogProfileAdapter$OnDogClickListener
+ ממשק לטיפול באירועי לחיצה על פרופיל כלב
+end note
+
+
+class com.example.vetcalls.vetFragment.PatientDetailsFragment {
+- TextView nameText
+- ImageView dogImage
+- LinearLayout appointmentsContainer
+- LinearLayout detailsContainer
+- RecyclerView dogsRecyclerView
+- FirebaseFirestore db
+- String ownerId
+- String vetId
+- boolean showList
+- List<DogProfile> dogList
+- DogProfileAdapter dogAdapter
+- Button backToListButton
++ View onCreateView(LayoutInflater,ViewGroup,Bundle)
+- void loadVetDogs()
+- String getStringField(DocumentSnapshot,String)
+- void showDogDetails(DogProfile)
+- void loadAppointments(String)
+- void showAppointmentDetails(String,String,String,String)
+- void showDogList()
+}
+
+
+
+
+com.example.vetcalls.obj.ViewHolder <|-- com.example.vetcalls.obj.MessageViewHolder
+androidx.appcompat.app.AppCompatActivity <|-- com.example.vetcalls.activities.LoginActivity
+java.io.Serializable <|.. com.example.vetcalls.obj.Appointment
+com.example.vetcalls.usersFragment.OnDogClickListener <|.. com.example.vetcalls.usersFragment.HomeFragment
+androidx.fragment.app.Fragment <|-- com.example.vetcalls.usersFragment.HomeFragment
+android.content.BroadcastReceiver <|-- com.example.vetcalls.obj.BootReceiver
+androidx.appcompat.app.AppCompatActivity <|-- com.example.vetcalls.activities.SignUpActivity
+com.example.vetcalls.obj.ViewHolder <|-- com.example.vetcalls.obj.ChatViewHolder
+com.example.vetcalls.usersFragment.ViewHolder <|-- com.example.vetcalls.usersFragment.AppointmentViewHolder
+com.example.vetcalls.obj.Adapter <|-- com.example.vetcalls.obj.MessageAdapter
+androidx.appcompat.app.AppCompatActivity <|-- com.example.vetcalls.activities.HomeActivity
+androidx.appcompat.app.AppCompatActivity <|-- com.example.vetcalls.activities.ForgotPasswordActivity
+androidx.fragment.app.Fragment <|-- com.example.vetcalls.usersFragment.ChatFragment
+com.example.vetcalls.obj.Adapter <|-- com.example.vetcalls.obj.ChatPreviewAdapter
+com.example.vetcalls.obj.ChatPreviewAdapter +.. com.example.vetcalls.obj.ChatPreviewAdapter$OnChatClickListener
+androidx.appcompat.app.AppCompatActivity <|-- com.example.vetcalls.activities.SignUpPasswordActivity
+androidx.fragment.app.Fragment <|-- com.example.vetcalls.usersFragment.ChatMessageFragment
+androidx.fragment.app.Fragment <|-- com.example.vetcalls.vetFragment.VetHomeFragment
+androidx.fragment.app.Fragment <|-- com.example.vetcalls.usersFragment.AppointmentDetailsFragment
+com.example.vetcalls.obj.ViewHolder <|-- com.example.vetcalls.obj.DogProfileViewHolder
+androidx.fragment.app.Fragment <|-- com.example.vetcalls.usersFragment.EditProfileFragment
+androidx.fragment.app.Fragment <|-- com.example.vetcalls.usersFragment.CalendarFragment
+androidx.fragment.app.Fragment <|-- com.example.vetcalls.vetFragment.EditVetProfileFragment
+com.example.vetcalls.usersFragment.Adapter <|-- com.example.vetcalls.usersFragment.AppointmentAdapter
+com.example.vetcalls.obj.FirestoreUserHelper +.. com.example.vetcalls.obj.FirestoreUserHelper$OnImageUploadListener
+androidx.fragment.app.Fragment <|-- com.example.vetcalls.usersFragment.AddAppointmentFragment
+androidx.appcompat.app.AppCompatActivity <|-- com.example.vetcalls.activities.VetHomeActivity
+androidx.fragment.app.Fragment <|-- com.example.vetcalls.usersFragment.HistoryFragment
+android.content.BroadcastReceiver <|-- com.example.vetcalls.obj.ReminderReceiver
+androidx.fragment.app.Fragment <|-- com.example.vetcalls.usersFragment.AddDogProfileFragment
+com.example.vetcalls.obj.Adapter <|-- com.example.vetcalls.obj.DogProfileAdapter
+com.example.vetcalls.obj.DogProfileAdapter +.. com.example.vetcalls.obj.DogProfileAdapter$OnDogClickListener
+androidx.fragment.app.Fragment <|-- com.example.vetcalls.vetFragment.PatientDetailsFragment
+@enduml

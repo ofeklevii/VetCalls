@@ -49,6 +49,7 @@ public class PatientDetailsFragment extends Fragment {
     private List<DogProfile> dogList = new ArrayList<>();
     private DogProfileAdapter dogAdapter;
     private Button backToListButton;
+    private DogProfile lastSelectedDog = null;
 
     @Nullable
     @Override
@@ -130,6 +131,7 @@ public class PatientDetailsFragment extends Fragment {
 
     private void showDogDetails(DogProfile dog) {
         showList = false;
+        lastSelectedDog = dog;
         nameText.setText("Name: " + dog.name);
         birthdayText.setText("Birthday: " + dog.birthday);
         raceText.setText("Race: " + dog.race);
@@ -177,6 +179,7 @@ public class PatientDetailsFragment extends Fragment {
                       args.putString("dogId", dogId);
                       args.putString("vetId", vetId);
                       args.putString("dogName", dogName);
+                      args.putBoolean("showActions", false);
                       com.example.vetcalls.usersFragment.AppointmentDetailsFragment detailsFragment = new com.example.vetcalls.usersFragment.AppointmentDetailsFragment();
                       detailsFragment.setArguments(args);
                       requireActivity().getSupportFragmentManager().beginTransaction()
@@ -199,5 +202,13 @@ public class PatientDetailsFragment extends Fragment {
         showList = true;
         detailsContainer.setVisibility(View.GONE);
         dogsRecyclerView.setVisibility(View.VISIBLE);
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        if (!showList && lastSelectedDog != null) {
+            showDogDetails(lastSelectedDog);
+        }
     }
 }
