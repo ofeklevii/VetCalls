@@ -22,7 +22,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.bumptech.glide.Glide;
 import com.example.vetcalls.R;
 import com.example.vetcalls.obj.MessageAdapter;
-import com.example.vetcalls.chat.Message;
+import com.example.vetcalls.obj.Message;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.*;
@@ -32,6 +32,13 @@ import com.google.firebase.storage.StorageReference;
 import java.io.ByteArrayOutputStream;
 import java.util.*;
 
+/**
+ * Fragment for displaying and managing chat messages between users.
+ * Provides comprehensive messaging functionality including text messages, media sharing,
+ * real-time message updates, and notification handling for both veterinarians and dog owners.
+ *
+ * @author Ofek Levi
+ */
 public class ChatMessageFragment extends Fragment {
 
     private static final String TAG = "ChatMessageFragment";
@@ -57,18 +64,26 @@ public class ChatMessageFragment extends Fragment {
     private MessageAdapter messageAdapter;
     private boolean isVet;
 
-    // --- משתנים למדיה ---
     private FrameLayout mediaPreviewLayout;
     private ImageView imagePreview;
     private VideoView videoPreview;
     private ImageButton closeMediaButton;
     private Uri selectedMediaUri = null;
-    private String selectedMediaType = null; // "image" / "video"
+    private String selectedMediaType = null;
 
     private static final int REQUEST_IMAGE_PICK = 1001;
     private static final int REQUEST_VIDEO_PICK = 1002;
     private static final int REQUEST_CAMERA = 1003;
 
+    /**
+     * Creates a new instance of ChatMessageFragment with the specified parameters.
+     *
+     * @param chatId Unique identifier for the chat
+     * @param recipientName Display name of the message recipient
+     * @param recipientImage Profile image URL of the recipient
+     * @param isVet Whether the current user is a veterinarian
+     * @return New ChatMessageFragment instance
+     */
     public static ChatMessageFragment newInstance(String chatId, String recipientName,
                                                   String recipientImage, boolean isVet) {
         ChatMessageFragment fragment = new ChatMessageFragment();
@@ -81,16 +96,20 @@ public class ChatMessageFragment extends Fragment {
         return fragment;
     }
 
+    /**
+     * Called when the fragment is first created.
+     * Initializes Firebase instances and retrieves fragment arguments.
+     *
+     * @param savedInstanceState If the fragment is being re-created from a previous saved state
+     */
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // אתחול Firebase
         db = FirebaseFirestore.getInstance();
         auth = FirebaseAuth.getInstance();
         currentUserId = auth.getCurrentUser().getUid();
 
-        // קבלת ארגומנטים
         if (getArguments() != null) {
             chatId = getArguments().getString(ARG_CHAT_ID);
             recipientDisplayName = getArguments().getString(ARG_RECIPIENT_NAME);
@@ -99,13 +118,20 @@ public class ChatMessageFragment extends Fragment {
         }
     }
 
+    /**
+     * Creates and returns the view hierarchy associated with the fragment.
+     *
+     * @param inflater The LayoutInflater object that can be used to inflate views
+     * @param container The parent view that the fragment's UI should be attached to
+     * @param savedInstanceState If non-null, this fragment is being re-constructed from a previous saved state
+     * @return The View for the fragment's UI
+     */
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_chat_message, container, false);
 
-        // אתחול views
         recipientImage = view.findViewById(R.id.recipientImage);
         recipientName = view.findViewById(R.id.recipientName);
         messagesRecyclerView = view.findViewById(R.id.messagesRecyclerView);
@@ -114,7 +140,6 @@ public class ChatMessageFragment extends Fragment {
         attachButton = view.findViewById(R.id.attachButton);
         backButton = view.findViewById(R.id.backButton);
 
-        // אתחול views למדיה
         mediaPreviewLayout = view.findViewById(R.id.mediaPreviewLayout);
         imagePreview = view.findViewById(R.id.imagePreview);
         videoPreview = view.findViewById(R.id.videoPreview);
@@ -123,11 +148,17 @@ public class ChatMessageFragment extends Fragment {
         return view;
     }
 
+    /**
+     * Called immediately after onCreateView has returned.
+     * Sets up UI components, event listeners, and starts listening for messages.
+     *
+     * @param view The View returned by onCreateView
+     * @param savedInstanceState If non-null, this fragment is being re-constructed from a previous saved state
+     */
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        // הגדרת מידע על הנמען
         recipientName.setText(recipientDisplayName);
         if (recipientImageUrl != null && !recipientImageUrl.isEmpty()) {
             Glide.with(this)
@@ -137,12 +168,10 @@ public class ChatMessageFragment extends Fragment {
                     .into(recipientImage);
         }
 
-        // הגדרת RecyclerView
         messageAdapter = new MessageAdapter(requireContext(), messageList, currentUserId);
         messagesRecyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
         messagesRecyclerView.setAdapter(messageAdapter);
 
-        // הוספת מאזינים
         sendButton.setOnClickListener(v -> {
             if (selectedMediaUri != null && selectedMediaType != null) {
                 sendMediaMessage();
@@ -152,7 +181,6 @@ public class ChatMessageFragment extends Fragment {
         });
         attachButton.setOnClickListener(v -> showAttachmentOptions());
         backButton.setOnClickListener(v -> {
-            // חזרה לפרגמנט רשימת הצ'אטים
             if (getParentFragmentManager().getBackStackEntryCount() > 0) {
                 getParentFragmentManager().popBackStack();
             }
@@ -166,10 +194,13 @@ public class ChatMessageFragment extends Fragment {
             closeMediaButton.setVisibility(View.GONE);
         });
 
-        // האזנה להודעות
         listenForMessages();
     }
 
+    /**
+     * Sets up real-time listener for chat messages from Firestore.
+     * Updates the message list and UI automatically when new messages arrive.
+     */
     private void listenForMessages() {
         if (chatId == null || chatId.isEmpty()) {
             Log.e(TAG, "מזהה צ'אט הוא null או ריק");
@@ -199,13 +230,16 @@ public class ChatMessageFragment extends Fragment {
 
                     messageAdapter.notifyDataSetChanged();
 
-                    // גלילה לתחתית
                     if (messageList.size() > 0) {
                         messagesRecyclerView.scrollToPosition(messageList.size() - 1);
                     }
                 });
     }
 
+    /**
+     * Sends a text message to the chat.
+     * Updates the last message information and triggers notification sending.
+     */
     private void sendMessage() {
         String text = messageInput.getText().toString().trim();
 
@@ -213,7 +247,6 @@ public class ChatMessageFragment extends Fragment {
             return;
         }
 
-        // יצירת אובייקט הודעה
         Message message = new Message(
                 currentUserId,
                 new Date(),
@@ -221,15 +254,12 @@ public class ChatMessageFragment extends Fragment {
                 text
         );
 
-        // הוספה ל-Firestore
         db.collection("Chats").document(chatId)
                 .collection("Messages")
                 .add(message)
                 .addOnSuccessListener(documentReference -> {
-                    // ניקוי שדה הקלט
                     messageInput.setText("");
 
-                    // עדכון ההודעה האחרונה במסמך הצ'אט
                     Map<String, Object> lastMessageData = new HashMap<>();
                     lastMessageData.put("lastMessage", text);
                     lastMessageData.put("lastMessageTime", new Date());
@@ -237,7 +267,6 @@ public class ChatMessageFragment extends Fragment {
                     db.collection("Chats").document(chatId)
                             .update(lastMessageData)
                             .addOnSuccessListener(aVoid -> {
-                                // שליחת התראה למקבל
                                 sendNotification(text);
                             })
                             .addOnFailureListener(e ->
@@ -249,8 +278,13 @@ public class ChatMessageFragment extends Fragment {
                 });
     }
 
+    /**
+     * Sends a notification to the message recipient.
+     * Creates notification data and stores it in Firestore for processing.
+     *
+     * @param messageText The text content of the message to include in the notification
+     */
     private void sendNotification(String messageText) {
-        // קבלת פרטי הצ'אט
         db.collection("Chats").document(chatId).get()
                 .addOnSuccessListener(documentSnapshot -> {
                     String receiverId;
@@ -267,7 +301,6 @@ public class ChatMessageFragment extends Fragment {
                         senderImage = documentSnapshot.getString("dogImageUrl");
                     }
 
-                    // שליחת התראה דרך Firebase Cloud Functions
                     Map<String, Object> notificationData = new HashMap<>();
                     notificationData.put("receiverId", receiverId);
                     notificationData.put("title", senderName);
@@ -286,6 +319,10 @@ public class ChatMessageFragment extends Fragment {
                         Log.e(TAG, "שגיאה בקבלת פרטי צ'אט", e));
     }
 
+    /**
+     * Shows attachment options popup menu for selecting media type.
+     * Provides options for camera, gallery images, and videos.
+     */
     private void showAttachmentOptions() {
         PopupMenu popup = new PopupMenu(requireContext(), attachButton);
         popup.getMenuInflater().inflate(R.menu.chat_attachment_menu, popup.getMenu());
@@ -312,6 +349,14 @@ public class ChatMessageFragment extends Fragment {
         popup.show();
     }
 
+    /**
+     * Handles the result from media selection activities.
+     * Processes selected images, videos, or camera captures for media preview.
+     *
+     * @param requestCode The request code used to start the activity
+     * @param resultCode The result code returned by the activity
+     * @param data The intent data containing the result
+     */
     @Override
     public void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -334,6 +379,10 @@ public class ChatMessageFragment extends Fragment {
         }
     }
 
+    /**
+     * Displays a preview of the selected media before sending.
+     * Shows appropriate preview based on media type (image or video).
+     */
     private void showMediaPreview() {
         mediaPreviewLayout.setVisibility(View.VISIBLE);
         closeMediaButton.setVisibility(View.VISIBLE);
@@ -349,6 +398,13 @@ public class ChatMessageFragment extends Fragment {
         }
     }
 
+    /**
+     * Converts a bitmap to a URI for storage and messaging purposes.
+     *
+     * @param context The application context
+     * @param bitmap The bitmap to convert
+     * @return URI representation of the bitmap
+     */
     private Uri getImageUri(Context context, Bitmap bitmap) {
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         bitmap.compress(Bitmap.CompressFormat.JPEG, 100, bytes);
@@ -356,6 +412,10 @@ public class ChatMessageFragment extends Fragment {
         return Uri.parse(path);
     }
 
+    /**
+     * Uploads and sends a media message (image or video) to the chat.
+     * Handles Firebase Storage upload and creates message with media URL.
+     */
     private void sendMediaMessage() {
         if (selectedMediaUri == null || selectedMediaType == null) return;
         String fileName = UUID.randomUUID().toString();
@@ -364,7 +424,6 @@ public class ChatMessageFragment extends Fragment {
 
         storageRef.putFile(selectedMediaUri)
                 .addOnSuccessListener(taskSnapshot -> storageRef.getDownloadUrl().addOnSuccessListener(uri -> {
-                    // יצירת הודעה עם קישור למדיה
                     Message message = new Message(
                             currentUserId,
                             new Date(),
@@ -375,7 +434,6 @@ public class ChatMessageFragment extends Fragment {
                             .collection("Messages")
                             .add(message)
                             .addOnSuccessListener(documentReference -> {
-                                // ניקוי תצוגה מקדימה
                                 selectedMediaUri = null;
                                 selectedMediaType = null;
                                 mediaPreviewLayout.setVisibility(View.GONE);

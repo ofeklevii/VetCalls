@@ -15,10 +15,22 @@ import com.example.vetcalls.vetFragment.PatientDetailsFragment;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.navigation.NavigationBarView;
 
+/**
+ * Main activity for veterinarian users providing navigation between different sections.
+ * Manages the bottom navigation view and fragment transitions for the veterinarian interface.
+ *
+ * @author Ofek Levi
+ */
 public class VetHomeActivity extends AppCompatActivity {
 
     private BottomNavigationView bottomNavigationView;
 
+    /**
+     * Called when the activity is first created.
+     * Initializes the UI components and sets up the bottom navigation functionality.
+     *
+     * @param savedInstanceState If the activity is being re-initialized after previously being shut down
+     */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -26,8 +38,13 @@ public class VetHomeActivity extends AppCompatActivity {
 
         bottomNavigationView = findViewById(R.id.bottom_navigation);
 
-        // הגדרת האזנה לשינוי בתפריט הניווט
         bottomNavigationView.setOnItemSelectedListener(new NavigationBarView.OnItemSelectedListener() {
+            /**
+             * Called when an item in the bottom navigation is selected.
+             *
+             * @param item The selected menu item
+             * @return true if the item selection was handled, false otherwise
+             */
             @Override
             public boolean onNavigationItemSelected(@NonNull MenuItem item) {
                 Fragment selectedFragment = null;
@@ -55,12 +72,11 @@ public class VetHomeActivity extends AppCompatActivity {
             }
         });
 
-        // טען את VetHomeFragment כברירת מחדל
         if (savedInstanceState == null) {
             getSupportFragmentManager().beginTransaction()
                     .replace(R.id.fragment_container, new VetHomeFragment())
                     .commit();
-            bottomNavigationView.setSelectedItemId(R.id.nav_home1); // סמן את הכפתור הראשון כנבחר
+            bottomNavigationView.setSelectedItemId(R.id.nav_home1);
         }
     }
 }

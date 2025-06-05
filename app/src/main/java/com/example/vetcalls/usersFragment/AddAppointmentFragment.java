@@ -1,3 +1,4 @@
+
 package com.example.vetcalls.usersFragment;
 
 import static com.example.vetcalls.obj.FirestoreUserHelper.deleteAppointment;
@@ -41,30 +42,50 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * Fragment for adding or editing veterinary appointments.
+ * Provides comprehensive appointment management including validation, scheduling conflicts detection,
+ * reminder setup, and proper data synchronization across collections.
+ *
+ * @author Ofek Levi
+ */
 public class AddAppointmentFragment extends Fragment {
 
     private static final String TAG = "AddAppointmentFragment";
     private FirebaseFirestore db;
 
-    // UI Components
     private TextView dateTextView;
     private Spinner appointmentTypeSpinner, dogSpinner, vetSpinner, reminder1Spinner, reminder2Spinner;
     private EditText notesEditText;
     private Button timeButton, saveButton;
 
-    // Data variables
     private String selectedDate, selectedDogId, selectedVetId, appointmentId, userId;
     private String selectedTime = "", endTime, appointmentType;
     private boolean isVet, isEdit = false;
     private long appointmentDurationMinutes = 20;
     private NotificationHelper notificationHelper;
 
+    /**
+     * Creates and returns the view hierarchy associated with the fragment.
+     *
+     * @param inflater The LayoutInflater object that can be used to inflate views
+     * @param container The parent view that the fragment's UI should be attached to
+     * @param savedInstanceState If non-null, this fragment is being re-constructed from a previous saved state
+     * @return The View for the fragment's UI
+     */
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         return inflater.inflate(R.layout.fragment_add_appointment, container, false);
     }
 
+    /**
+     * Called immediately after onCreateView has returned.
+     * Initializes all UI components, data, and event listeners.
+     *
+     * @param view The View returned by onCreateView
+     * @param savedInstanceState If non-null, this fragment is being re-constructed from a previous saved state
+     */
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
@@ -80,6 +101,11 @@ public class AddAppointmentFragment extends Fragment {
         }
     }
 
+    /**
+     * Initializes all UI components and configures their initial visibility.
+     *
+     * @param view The root view of the fragment
+     */
     private void initViews(View view) {
         dateTextView = view.findViewById(R.id.dateTextView);
         appointmentTypeSpinner = view.findViewById(R.id.appointmentTypeSpinner);
@@ -92,18 +118,19 @@ public class AddAppointmentFragment extends Fragment {
         saveButton = view.findViewById(R.id.saveButton);
         Button deleteButton = view.findViewById(R.id.deleteButton);
 
-        // הסתרת רכיבים בהתחלה
         timeButton.setVisibility(View.GONE);
         view.findViewById(R.id.timeLabel).setVisibility(View.GONE);
         view.findViewById(R.id.userMessageTextView).setVisibility(View.GONE);
 
-        // הצגת כפתור מחיקה רק במצב עריכה
         if (isEdit && !appointmentId.isEmpty()) {
             deleteButton.setVisibility(View.VISIBLE);
             ((TextView) view.findViewById(R.id.titleTextView)).setText("Editing an appointment");
         }
     }
 
+    /**
+     * Initializes data sources and determines user type.
+     */
     private void initData() {
         db = FirebaseFirestore.getInstance();
         userId = FirebaseAuth.getInstance().getCurrentUser().getUid();
@@ -113,6 +140,9 @@ public class AddAppointmentFragment extends Fragment {
         isVet = prefs.getBoolean("isVet", false);
     }
 
+    /**
+     * Sets up fragment arguments and displays the selected date.
+     */
     private void setupArguments() {
         if (getArguments() != null) {
             selectedDate = getArguments().getString("selectedDate", "");
@@ -122,6 +152,9 @@ public class AddAppointmentFragment extends Fragment {
         }
     }
 
+    /**
+     * Initializes all spinners with their respective data.
+     */
     private void setupSpinners() {
         setupAppointmentTypeSpinner();
         setupReminderSpinners();
@@ -129,6 +162,9 @@ public class AddAppointmentFragment extends Fragment {
         loadVets();
     }
 
+    /**
+     * Sets up event listeners for all interactive UI components.
+     */
     private void setupListeners() {
         appointmentTypeSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
@@ -163,7 +199,6 @@ public class AddAppointmentFragment extends Fragment {
             public void onNothingSelected(AdapterView<?> parent) {}
         });
 
-        // כפתור בחירת שעה
         timeButton.setOnClickListener(v -> {
             Calendar calendar = Calendar.getInstance();
             new android.app.TimePickerDialog(getContext(),
@@ -173,10 +208,8 @@ public class AddAppointmentFragment extends Fragment {
                     }, calendar.get(Calendar.HOUR_OF_DAY), calendar.get(Calendar.MINUTE), true).show();
         });
 
-        // כפתור שמירה
         saveButton.setOnClickListener(v -> saveAppointment());
 
-        // כפתור מחיקה
         requireView().findViewById(R.id.deleteButton).setOnClickListener(v -> {
             if (isEdit && appointmentId != null && !appointmentId.isEmpty()) {
                 new androidx.appcompat.app.AlertDialog.Builder(requireContext())
@@ -187,12 +220,10 @@ public class AddAppointmentFragment extends Fragment {
                                     appointmentId,
                                     selectedDogId,
                                     selectedVetId,
-                                    // הצלחה
                                     () -> {
                                         Toast.makeText(requireContext(), "Appointment deleted successfully", Toast.LENGTH_SHORT).show();
                                         requireActivity().getSupportFragmentManager().popBackStack();
                                     },
-                                    // שגיאה
                                     (errorMessage) -> {
                                         Log.e(TAG, "Error deleting appointment: " + errorMessage);
                                         Toast.makeText(requireContext(), "Error: " + errorMessage, Toast.LENGTH_LONG).show();
@@ -205,6 +236,9 @@ public class AddAppointmentFragment extends Fragment {
         });
     }
 
+    /**
+     * Loads appointment data from arguments when in edit mode.
+     */
     private void loadAppointmentDataFromArguments() {
         if (getArguments() != null) {
             selectedDogId = getArguments().getString("selectedDogId", "");
@@ -216,6 +250,9 @@ public class AddAppointmentFragment extends Fragment {
         }
     }
 
+    /**
+     * Loads existing appointment data from Firestore for editing.
+     */
     private void loadAppointmentDataFromFirestore() {
         db.collection("DogProfiles")
                 .document(selectedDogId)
@@ -247,6 +284,11 @@ public class AddAppointmentFragment extends Fragment {
                 });
     }
 
+    /**
+     * Updates the dog spinner selection to match the provided dog ID.
+     *
+     * @param dogId The dog ID to select in the spinner
+     */
     private void updateDogSpinnerSelection(String dogId) {
         ArrayAdapter<DogItem> adapter = (ArrayAdapter<DogItem>) dogSpinner.getAdapter();
         if (adapter != null) {
@@ -260,6 +302,11 @@ public class AddAppointmentFragment extends Fragment {
         }
     }
 
+    /**
+     * Updates the veterinarian spinner selection to match the provided vet ID.
+     *
+     * @param vetId The veterinarian ID to select in the spinner
+     */
     private void updateVetSpinnerSelection(String vetId) {
         if (!isVet) {
             ArrayAdapter<VetItem> adapter = (ArrayAdapter<VetItem>) vetSpinner.getAdapter();
@@ -275,6 +322,9 @@ public class AddAppointmentFragment extends Fragment {
         }
     }
 
+    /**
+     * Initiates the appointment saving process with validation and conflict checking.
+     */
     private void saveAppointment() {
         if (!validateInputs()) return;
 
@@ -285,6 +335,11 @@ public class AddAppointmentFragment extends Fragment {
         }
     }
 
+    /**
+     * Validates all required input fields before saving.
+     *
+     * @return true if all inputs are valid, false otherwise
+     */
     private boolean validateInputs() {
         if (selectedDogId == null || selectedDogId.isEmpty()) {
             Toast.makeText(requireContext(), "You have to choose a dog", Toast.LENGTH_SHORT).show();
@@ -305,6 +360,9 @@ public class AddAppointmentFragment extends Fragment {
         return true;
     }
 
+    /**
+     * Checks if the appointment time has changed during editing and validates accordingly.
+     */
     private void checkIfTimeChangedAndValidate() {
         db.collection("DogProfiles")
                 .document(selectedDogId)
@@ -334,6 +392,9 @@ public class AddAppointmentFragment extends Fragment {
                 .addOnFailureListener(e -> proceedWithSave());
     }
 
+    /**
+     * Validates the new appointment time against existing appointments to prevent conflicts.
+     */
     private void validateNewTimeAndSave() {
         db.collection("Veterinarians")
                 .document(selectedVetId)
@@ -375,6 +436,9 @@ public class AddAppointmentFragment extends Fragment {
                 });
     }
 
+    /**
+     * Proceeds with saving the appointment after all validations pass.
+     */
     private void proceedWithSave() {
         calculateEndTime();
 
@@ -385,13 +449,17 @@ public class AddAppointmentFragment extends Fragment {
         Map<String, Object> appointmentData = createAppointmentData();
         addReminders(appointmentData);
 
-        // שמירה בתת-קולקשן של הכלב (קיים)
         FirestoreUserHelper.addAppointment(appointmentId, appointmentData);
 
         Toast.makeText(requireContext(), isEdit ? "Appointment updated successfully" : "Appointment created successfully", Toast.LENGTH_SHORT).show();
         requireActivity().getSupportFragmentManager().popBackStack();
     }
 
+    /**
+     * Creates the appointment data map for Firestore storage.
+     *
+     * @return Map containing all appointment data
+     */
     private Map<String, Object> createAppointmentData() {
         Map<String, Object> data = new HashMap<>();
         data.put("id", appointmentId);
@@ -405,7 +473,6 @@ public class AddAppointmentFragment extends Fragment {
         data.put("notes", notesEditText.getText().toString());
         data.put("completed", false);
 
-        // Add dog and vet names
         if (dogSpinner.getSelectedItem() instanceof DogItem) {
             data.put("dogName", ((DogItem) dogSpinner.getSelectedItem()).getName());
         }
@@ -421,8 +488,13 @@ public class AddAppointmentFragment extends Fragment {
         return data;
     }
 
+    /**
+     * Adds reminder notifications for the appointment.
+     *
+     * @param appointmentData The appointment data map
+     */
     private void addReminders(Map<String, Object> appointmentData) {
-        if (isVet) return; // וטרינרים לא מקבלים תזכורות
+        if (isVet) return;
 
         String reminder1 = reminder1Spinner.getSelectedItem().toString();
         String reminder2 = reminder2Spinner.getSelectedItem().toString();
@@ -445,6 +517,12 @@ public class AddAppointmentFragment extends Fragment {
         }
     }
 
+    /**
+     * Creates a specific reminder notification and stores it in Firestore.
+     *
+     * @param reminderOption The reminder timing option
+     * @param appointmentTime The appointment time in milliseconds
+     */
     private void createReminder(String reminderOption, long appointmentTime) {
         long reminderTime = getReminderTime(reminderOption, appointmentTime);
 
@@ -465,7 +543,9 @@ public class AddAppointmentFragment extends Fragment {
         FirestoreUserHelper.addReminderToUser(userId, (String) reminderData.get("id"), reminderData);
     }
 
-    // Helper methods
+    /**
+     * Calculates the end time based on selected time and appointment duration.
+     */
     private void calculateEndTime() {
         if (selectedTime != null && !selectedTime.isEmpty()) {
             int startMinutes = convertTimeToMinutes(selectedTime);
@@ -474,17 +554,34 @@ public class AddAppointmentFragment extends Fragment {
         }
     }
 
+    /**
+     * Converts time string to minutes for calculation purposes.
+     *
+     * @param time Time in HH:MM format
+     * @return Time in minutes from midnight
+     */
     private int convertTimeToMinutes(String time) {
         String[] parts = time.split(":");
         return Integer.parseInt(parts[0]) * 60 + Integer.parseInt(parts[1]);
     }
 
+    /**
+     * Converts minutes to time string format.
+     *
+     * @param minutes Minutes from midnight
+     * @return Time in HH:MM format
+     */
     private String convertMinutesToTime(int minutes) {
         int hours = minutes / 60;
         int mins = minutes % 60;
         return String.format(Locale.getDefault(), "%02d:%02d", hours, mins);
     }
 
+    /**
+     * Updates appointment duration based on appointment type.
+     *
+     * @param type The appointment type
+     */
     private void updateAppointmentDuration(String type) {
         switch (type) {
             case "Vaccination and blood tests": appointmentDurationMinutes = 20; break;
@@ -495,6 +592,9 @@ public class AddAppointmentFragment extends Fragment {
         }
     }
 
+    /**
+     * Updates the visibility of time selection components based on selections.
+     */
     private void updateTimeSpinnerVisibility() {
         TextView timeLabel = requireView().findViewById(R.id.timeLabel);
         TextView messageView = requireView().findViewById(R.id.userMessageTextView);
@@ -514,6 +614,9 @@ public class AddAppointmentFragment extends Fragment {
         }
     }
 
+    /**
+     * Sets up the appointment type spinner with predefined options.
+     */
     private void setupAppointmentTypeSpinner() {
         String[] types = {"Vaccination and blood tests", "Routine tests", "Surgery", "Urgent treatment"};
         ArrayAdapter<String> adapter = new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_item, types);
@@ -521,6 +624,9 @@ public class AddAppointmentFragment extends Fragment {
         appointmentTypeSpinner.setAdapter(adapter);
     }
 
+    /**
+     * Sets up the reminder spinners with timing options.
+     */
     private void setupReminderSpinners() {
         String[] options = {"No reminder", "At appointment time", "5 minutes before", "10 minutes before",
                 "15 minutes before", "30 minutes before", "1 hour before", "2 hours before",
@@ -531,6 +637,9 @@ public class AddAppointmentFragment extends Fragment {
         reminder2Spinner.setAdapter(adapter);
     }
 
+    /**
+     * Loads dogs from Firestore based on user type.
+     */
     private void loadDogs() {
         ArrayList<DogItem> dogs = new ArrayList<>();
         dogs.add(new DogItem("", "Choose a dog..."));
@@ -573,12 +682,20 @@ public class AddAppointmentFragment extends Fragment {
         }
     }
 
+    /**
+     * Sets the adapter for the dog spinner.
+     *
+     * @param dogs List of DogItem objects to display
+     */
     private void setDogAdapter(ArrayList<DogItem> dogs) {
         ArrayAdapter<DogItem> adapter = new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_item, dogs);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         dogSpinner.setAdapter(adapter);
     }
 
+    /**
+     * Loads veterinarians from Firestore or hides the spinner for vet users.
+     */
     private void loadVets() {
         if (isVet) {
             vetSpinner.setVisibility(View.GONE);
@@ -605,6 +722,12 @@ public class AddAppointmentFragment extends Fragment {
         }
     }
 
+    /**
+     * Sets the selection of a spinner to match a specific value.
+     *
+     * @param spinner The spinner to update
+     * @param value The value to select
+     */
     private void setSpinnerSelection(Spinner spinner, String value) {
         if (value == null) return;
         ArrayAdapter adapter = (ArrayAdapter) spinner.getAdapter();
@@ -616,6 +739,13 @@ public class AddAppointmentFragment extends Fragment {
         }
     }
 
+    /**
+     * Calculates the reminder time based on the selected option.
+     *
+     * @param option The reminder timing option
+     * @param appointmentTime The appointment time in milliseconds
+     * @return The reminder time in milliseconds
+     */
     private long getReminderTime(String option, long appointmentTime) {
         switch (option) {
             case "At appointment time": return appointmentTime;

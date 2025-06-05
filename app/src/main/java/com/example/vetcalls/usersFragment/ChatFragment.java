@@ -26,6 +26,13 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import java.util.*;
 import java.util.Map;
 
+/**
+ * Fragment for managing chat functionality in the VetCalls application.
+ * Handles chat list display, new chat creation, and user type detection.
+ * Provides comprehensive chat management for both veterinarians and dog owners.
+ *
+ * @author Ofek Levi
+ */
 public class ChatFragment extends Fragment {
 
     private static final String TAG = "ChatFragment";
@@ -37,23 +44,30 @@ public class ChatFragment extends Fragment {
     private List<ChatPreview> chatList = new ArrayList<>();
     private TextView emptyChatsText;
 
-    private boolean isVet = false; // יקבע לפי סוג המשתמש
+    private boolean isVet = false;
 
+    /**
+     * Default constructor for ChatFragment.
+     */
     public ChatFragment() {}
 
+    /**
+     * Called when the fragment is first created.
+     * Initializes Firebase instances and determines user type.
+     *
+     * @param savedInstanceState If the fragment is being re-created from a previous saved state
+     */
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         db = FirebaseFirestore.getInstance();
         auth = FirebaseAuth.getInstance();
 
-        // בדיקה אם המשתמש הוא וטרינר
         String currentUserId = auth.getCurrentUser().getUid();
         db.collection("Veterinarians").document(currentUserId).get()
                 .addOnSuccessListener(documentSnapshot -> {
                     isVet = documentSnapshot.exists();
                     Log.d(TAG, "User type checked - isVet: " + isVet);
-                    // לאחר קביעת סוג המשתמש, רענן את רשימת הצ'אטים
                     if (recyclerView != null && adapter != null) {
                         updateAdapterUserType();
                         loadChatList();
@@ -61,7 +75,6 @@ public class ChatFragment extends Fragment {
                 })
                 .addOnFailureListener(e -> {
                     Log.e(TAG, "Error checking user type", e);
-                    // במקרה של שגיאה, נניח שהמשתמש הוא לא וטרינר
                     isVet = false;
                     if (recyclerView != null && adapter != null) {
                         updateAdapterUserType();
@@ -70,6 +83,14 @@ public class ChatFragment extends Fragment {
                 });
     }
 
+    /**
+     * Creates and returns the view hierarchy associated with the fragment.
+     *
+     * @param inflater The LayoutInflater object that can be used to inflate views
+     * @param container The parent view that the fragment's UI should be attached to
+     * @param savedInstanceState If non-null, this fragment is being re-constructed from a previous saved state
+     * @return The View for the fragment's UI
+     */
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_chat, container, false);
@@ -79,13 +100,11 @@ public class ChatFragment extends Fragment {
         emptyChatsText = view.findViewById(R.id.emptyChatsText);
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
 
-        // אתחול האדפטר עם רשימת צ'אטים ריקה תחילה
         adapter = new ChatPreviewAdapter(chatList, chat -> openChatFragment(chat));
         recyclerView.setAdapter(adapter);
 
         startChatFab.setOnClickListener(v -> openNewChatDialog());
 
-        // טען את רשימת הצ'אטים רק אם אנחנו כבר יודעים את סוג המשתמש
         if (isVet || isVet == false) {
             loadChatList();
         }
@@ -93,18 +112,29 @@ public class ChatFragment extends Fragment {
         return view;
     }
 
+    /**
+     * Called when the fragment becomes visible to the user.
+     * Refreshes the chat list each time the fragment resumes.
+     */
     @Override
     public void onResume() {
         super.onResume();
-        // רענן את רשימת הצ'אטים בכל פעם שהפרגמנט מתחדש
         loadChatList();
     }
 
+    /**
+     * Updates the adapter with the current user type.
+     */
     private void updateAdapterUserType() {
         adapter = new ChatPreviewAdapter(chatList, chat -> openChatFragment(chat));
         recyclerView.setAdapter(adapter);
     }
 
+    /**
+     * Opens the chat fragment for a specific chat.
+     *
+     * @param chat The ChatPreview object containing chat information
+     */
     private void openChatFragment(ChatPreview chat) {
         ChatMessageFragment chatFragment = ChatMessageFragment.newInstance(
                 chat.chatId,
@@ -119,6 +149,10 @@ public class ChatFragment extends Fragment {
                 .commit();
     }
 
+    /**
+     * Loads the chat list for the current user from Firestore.
+     * Displays different information based on whether the user is a veterinarian or dog owner.
+     */
     private void loadChatList() {
         String currentUserId = auth.getCurrentUser() != null ? auth.getCurrentUser().getUid() : null;
         if (currentUserId == null) return;
@@ -155,16 +189,15 @@ public class ChatFragment extends Fragment {
                             String vetId = doc.getString("vetId");
                             if (vetId != null && !vetId.isEmpty()) {
                                 db.collection("Veterinarians").document(vetId).get()
-                                    .addOnSuccessListener(vetDoc -> {
-                                        String name = vetDoc.getString("fullName");
-                                        String img = vetDoc.getString("profileImageUrl");
-                                        String finalName = (name != null && !name.isEmpty()) ? name : "וטרינר";
-                                        String finalImg = (img != null && !img.isEmpty()) ? img : "https://example.com/default_vet_image.png";
-                                        updateOrAddChatPreview(chatId, finalName, finalImg, lastMessage, lastMessageTime);
-                                    });
+                                        .addOnSuccessListener(vetDoc -> {
+                                            String name = vetDoc.getString("fullName");
+                                            String img = vetDoc.getString("profileImageUrl");
+                                            String finalName = (name != null && !name.isEmpty()) ? name : "וטרינר";
+                                            String finalImg = (img != null && !img.isEmpty()) ? img : "https://example.com/default_vet_image.png";
+                                            updateOrAddChatPreview(chatId, finalName, finalImg, lastMessage, lastMessageTime);
+                                        });
                                 continue;
                             } else {
-                                // vetId ריק - ברירת מחדל
                                 displayName = "וטרינר";
                                 imageUrl = "https://example.com/default_vet_image.png";
                                 updateOrAddChatPreview(chatId, displayName, imageUrl, lastMessage, lastMessageTime);
@@ -175,13 +208,11 @@ public class ChatFragment extends Fragment {
                 })
                 .addOnFailureListener(e -> {
                     if (e.getMessage() != null && e.getMessage().contains("PERMISSION_DENIED")) {
-                        // מטפל במקרה של שגיאה שלא ניתן לקרוא לצ'אטים
                     }
                     Context context = getContext();
                     if (context != null) {
                         Toast.makeText(context, "אין לך עדיין צ'אטים, צרי שיחה חדשה!", Toast.LENGTH_LONG).show();
                     }
-                    // עדכון תצוגה
                     if (emptyChatsText != null && recyclerView != null) {
                         recyclerView.setVisibility(View.GONE);
                         emptyChatsText.setVisibility(View.VISIBLE);
@@ -189,6 +220,15 @@ public class ChatFragment extends Fragment {
                 });
     }
 
+    /**
+     * Updates an existing chat preview or adds a new one to the list.
+     *
+     * @param chatId The unique identifier for the chat
+     * @param displayName The name to display for the chat
+     * @param imageUrl The profile image URL for the chat
+     * @param lastMessage The last message content
+     * @param lastMessageTime The timestamp of the last message
+     */
     private void updateOrAddChatPreview(String chatId, String displayName, String imageUrl, String lastMessage, Date lastMessageTime) {
         for (int i = 0; i < chatList.size(); i++) {
             if (chatList.get(i).chatId.equals(chatId)) {
@@ -203,6 +243,9 @@ public class ChatFragment extends Fragment {
         updateEmptyView();
     }
 
+    /**
+     * Updates the visibility of the empty view based on chat list status.
+     */
     private void updateEmptyView() {
         if (emptyChatsText != null && recyclerView != null) {
             if (chatList.isEmpty()) {
@@ -215,6 +258,10 @@ public class ChatFragment extends Fragment {
         }
     }
 
+    /**
+     * Opens a dialog for creating a new chat.
+     * Shows different options based on user type (veterinarian or dog owner).
+     */
     private void openNewChatDialog() {
         String currentUserId = auth.getCurrentUser().getUid();
         if (isVet) {
@@ -232,7 +279,6 @@ public class ChatFragment extends Fragment {
                             if (ageObj != null) {
                                 age = ageObj.toString();
                             }
-                            // אפשר להוסיף עוד שדות אם צריך
 
                             if (name != null && !name.isEmpty()) {
                                 dogNames.add(name);
@@ -291,6 +337,12 @@ public class ChatFragment extends Fragment {
         }
     }
 
+    /**
+     * Shows a selection dialog with available options for chat creation.
+     *
+     * @param optionsList List of options to display in the dialog
+     * @param idMap Map connecting option names to their IDs
+     */
     private void showSelectionDialog(List<String> optionsList, Map<String, String> idMap) {
         if (optionsList.isEmpty()) return;
 
@@ -305,6 +357,13 @@ public class ChatFragment extends Fragment {
         builder.show();
     }
 
+    /**
+     * Creates a new chat between the current user and the selected participant.
+     * First checks if a chat already exists between the participants.
+     *
+     * @param selectedName The display name of the selected participant
+     * @param selectedId The unique ID of the selected participant
+     */
     private void createNewChat(String selectedName, String selectedId) {
         String currentUserId = auth.getCurrentUser().getUid();
         if (currentUserId == null || selectedId == null || selectedId.isEmpty()) {
@@ -316,7 +375,6 @@ public class ChatFragment extends Fragment {
             return;
         }
 
-        // חפש צ'אט קיים עם אותם participants (בדיוק שניהם)
         db.collection("Chats")
                 .whereArrayContains("participants", currentUserId)
                 .get()
@@ -340,7 +398,6 @@ public class ChatFragment extends Fragment {
                         }
                     }
                     if (!found) {
-                        // לא נמצא צ'אט - צור חדש
                         proceedWithChatCreation(currentUserId, selectedName, selectedId);
                     }
                 })
@@ -353,9 +410,16 @@ public class ChatFragment extends Fragment {
                 });
     }
 
+    /**
+     * Proceeds with creating a new chat after confirming no existing chat exists.
+     * Fetches necessary participant details based on user type.
+     *
+     * @param currentUserId The current user's ID
+     * @param selectedName The selected participant's display name
+     * @param selectedId The selected participant's ID
+     */
     private void proceedWithChatCreation(String currentUserId, String selectedName, String selectedId) {
         if (isVet) {
-            // שלוף את פרטי הכלב
             db.collection("DogProfiles").document(selectedId).get()
                     .addOnSuccessListener(dogDoc -> {
                         if (dogDoc.exists()) {
@@ -386,69 +450,76 @@ public class ChatFragment extends Fragment {
                         }
                     });
         } else {
-            // שלוף את פרטי הווטרינר
             db.collection("Veterinarians").document(selectedId).get()
-                .addOnSuccessListener(vetDoc -> {
-                    if (vetDoc.exists()) {
-                        String vetImageUrl = vetDoc.getString("profileImageUrl");
-                        if (vetImageUrl != null) vetImageUrl = vetImageUrl.trim();
-                        if (vetImageUrl == null || vetImageUrl.isEmpty()) {
-                            vetImageUrl = "https://example.com/default_vet_image.png";
-                        }
-                        String vetName = vetDoc.getString("fullName");
-                        if (vetName == null || vetName.trim().isEmpty()) {
-                            vetName = vetDoc.getString("email");
+                    .addOnSuccessListener(vetDoc -> {
+                        if (vetDoc.exists()) {
+                            String vetImageUrl = vetDoc.getString("profileImageUrl");
+                            if (vetImageUrl != null) vetImageUrl = vetImageUrl.trim();
+                            if (vetImageUrl == null || vetImageUrl.isEmpty()) {
+                                vetImageUrl = "https://example.com/default_vet_image.png";
+                            }
+                            String vetName = vetDoc.getString("fullName");
                             if (vetName == null || vetName.trim().isEmpty()) {
-                                vetName = "וטרינר";
+                                vetName = vetDoc.getString("email");
+                                if (vetName == null || vetName.trim().isEmpty()) {
+                                    vetName = "וטרינר";
+                                }
+                            }
+                            final String finalVetName = vetName;
+                            final String finalVetImageUrl = vetImageUrl;
+                            db.collection("DogProfiles")
+                                    .whereEqualTo("ownerId", currentUserId)
+                                    .limit(1)
+                                    .get()
+                                    .addOnSuccessListener(dogQuery -> {
+                                        String dogName = "כלב";
+                                        String dogImageUrl = "https://example.com/default_dog_image.png";
+                                        String dogId = "";
+                                        if (!dogQuery.isEmpty()) {
+                                            DocumentSnapshot dogDoc = dogQuery.getDocuments().get(0);
+                                            dogName = dogDoc.getString("name");
+                                            dogImageUrl = dogDoc.getString("profileImageUrl");
+                                            dogId = dogDoc.getId();
+                                            if (dogName == null || dogName.isEmpty()) dogName = "כלב";
+                                            if (dogImageUrl == null || dogImageUrl.isEmpty()) dogImageUrl = "https://example.com/default_dog_image.png";
+                                        }
+                                        String chatId = (dogId.isEmpty() ? currentUserId : dogId) + "_" + selectedId;
+                                        saveChatToFirestore(chatId, currentUserId, selectedId, dogName, dogImageUrl, finalVetName, finalVetImageUrl);
+                                    })
+                                    .addOnFailureListener(e -> {
+                                        String chatId = currentUserId + "_" + selectedId;
+                                        saveChatToFirestore(chatId, currentUserId, selectedId, "כלב", "https://example.com/default_dog_image.png", finalVetName, finalVetImageUrl);
+                                    });
+                        } else {
+                            Context context = getContext();
+                            if (context != null) {
+                                Toast.makeText(context, "לא נמצא וטרינר", Toast.LENGTH_SHORT).show();
                             }
                         }
-                        final String finalVetName = vetName;
-                        final String finalVetImageUrl = vetImageUrl;
-                        // שלוף את פרטי הכלב של הבעלים (מניח כלב אחד לכל בעלים, או אפשר להוסיף בחירה)
-                        db.collection("DogProfiles")
-                            .whereEqualTo("ownerId", currentUserId)
-                            .limit(1)
-                            .get()
-                            .addOnSuccessListener(dogQuery -> {
-                                String dogName = "כלב";
-                                String dogImageUrl = "https://example.com/default_dog_image.png";
-                                String dogId = "";
-                                if (!dogQuery.isEmpty()) {
-                                    DocumentSnapshot dogDoc = dogQuery.getDocuments().get(0);
-                                    dogName = dogDoc.getString("name");
-                                    dogImageUrl = dogDoc.getString("profileImageUrl");
-                                    dogId = dogDoc.getId();
-                                    if (dogName == null || dogName.isEmpty()) dogName = "כלב";
-                                    if (dogImageUrl == null || dogImageUrl.isEmpty()) dogImageUrl = "https://example.com/default_dog_image.png";
-                                }
-                                String chatId = (dogId.isEmpty() ? currentUserId : dogId) + "_" + selectedId;
-                                saveChatToFirestore(chatId, currentUserId, selectedId, dogName, dogImageUrl, finalVetName, finalVetImageUrl);
-                            })
-                            .addOnFailureListener(e -> {
-                                // במקרה של שגיאה, השתמש במידע ברירת מחדל לכלב
-                                String chatId = currentUserId + "_" + selectedId;
-                                saveChatToFirestore(chatId, currentUserId, selectedId, "כלב", "https://example.com/default_dog_image.png", finalVetName, finalVetImageUrl);
-                            });
-                    } else {
+                    })
+                    .addOnFailureListener(e -> {
+                        Log.e(TAG, "שגיאה בטעינת וטרינר", e);
                         Context context = getContext();
                         if (context != null) {
-                            Toast.makeText(context, "לא נמצא וטרינר", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(context, "שגיאה בטעינת וטרינר: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                         }
-                    }
-                })
-                .addOnFailureListener(e -> {
-                    Log.e(TAG, "שגיאה בטעינת וטרינר", e);
-                    Context context = getContext();
-                    if (context != null) {
-                        Toast.makeText(context, "שגיאה בטעינת וטרינר: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                    }
-                });
+                    });
         }
     }
 
+    /**
+     * Saves the chat data to Firestore with all necessary participant information.
+     *
+     * @param chatId The unique chat identifier
+     * @param currentUserId The current user's ID
+     * @param otherId The other participant's ID
+     * @param dogName The dog's name
+     * @param dogImageUrl The dog's profile image URL
+     * @param vetName The veterinarian's name
+     * @param vetImageUrl The veterinarian's profile image URL
+     */
     private void saveChatToFirestore(String chatId, String currentUserId, String otherId,
                                      String dogName, String dogImageUrl, String vetName, String vetImageUrl) {
-        // וידוא שיש לנו את כל המידע הנדרש
         if (currentUserId == null || otherId == null) {
             Log.e(TAG, "saveChatToFirestore: חסרים מזההי משתמשים");
             Context context = getContext();
@@ -458,7 +529,6 @@ public class ChatFragment extends Fragment {
             return;
         }
 
-        // וידוא שהמשתמש הנוכחי מחובר
         if (auth.getCurrentUser() == null || !auth.getCurrentUser().getUid().equals(currentUserId)) {
             Log.e(TAG, "saveChatToFirestore: המשתמש לא מחובר או המזהה לא תואם");
             Context context = getContext();
@@ -469,13 +539,11 @@ public class ChatFragment extends Fragment {
         }
 
         Map<String, Object> data = new HashMap<>();
-        // יצירת מערך participants עם שני המשתתפים
         List<String> participants = Arrays.asList(currentUserId, otherId);
         data.put("participants", participants);
         data.put("lastMessage", "התחל שיחה...");
         data.put("lastMessageTime", new Date());
 
-        // הוספת פרטים אמיתיים לפי סוג המשתמש
         if (isVet) {
             data.put("dogName", dogName != null && !dogName.isEmpty() ? dogName : "כלב");
             data.put("dogImageUrl", dogImageUrl != null && !dogImageUrl.isEmpty() ? dogImageUrl : "https://example.com/default_dog_image.png");
@@ -504,7 +572,6 @@ public class ChatFragment extends Fragment {
             Log.d(TAG, "vetId: " + data.get("vetId"));
         }
 
-        // הוספת לוגים לדיבוג
         Log.d(TAG, "Creating chat with ID: " + chatId);
         Log.d(TAG, "Current user ID: " + currentUserId);
         Log.d(TAG, "Other user ID: " + otherId);
@@ -514,6 +581,12 @@ public class ChatFragment extends Fragment {
         createChatDocument(chatId, data);
     }
 
+    /**
+     * Creates the chat document in Firestore and handles the response.
+     *
+     * @param chatId The unique chat identifier
+     * @param data The chat data to be saved
+     */
     private void createChatDocument(String chatId, Map<String, Object> data) {
         if (data == null || !data.containsKey("participants")) {
             Log.e(TAG, "createChatDocument: data או participants חסרים");
@@ -528,7 +601,6 @@ public class ChatFragment extends Fragment {
                     if (context != null) {
                         Toast.makeText(context, "נוצר צ'אט חדש", Toast.LENGTH_SHORT).show();
                     }
-                    // פתיחת הצ'אט החדש
                     String displayName = isVet ? (String) data.get("dogName") : (String) data.get("vetName");
                     String imageUrl = isVet ? (String) data.get("dogImageUrl") : (String) data.get("vetImageUrl");
                     ChatPreview chatPreview = new ChatPreview(chatId, displayName, imageUrl);
@@ -550,15 +622,18 @@ public class ChatFragment extends Fragment {
                 });
     }
 
-    // מתודה לקריאה כאשר המשתמש מתחבר לאתחול קולקשיין הצ'אטים שלו
+    /**
+     * Initializes user chats collection in Firestore for a new user.
+     * This method should be called from the login activity or main activity.
+     *
+     * @param userId The user's unique identifier
+     * @param isVet Whether the user is a veterinarian
+     * @param db The Firestore database instance
+     */
     public static void initializeUserChats(String userId, boolean isVet, FirebaseFirestore db) {
-        // יש לקרוא למתודה זו מפעילות ההתחברות או הפעילות הראשית שלך
-        // היא מבטיחה שלמשתמש יש צומת צ'אט ב-Firestore
-
         db.collection("UserChats").document(userId).get()
                 .addOnSuccessListener(documentSnapshot -> {
                     if (!documentSnapshot.exists()) {
-                        // יצירת מסמך צ'אט משתמש חדש
                         Map<String, Object> userData = new HashMap<>();
                         userData.put("isVet", isVet);
                         userData.put("lastSeen", new Date());

@@ -1,4 +1,5 @@
 package com.example.vetcalls.obj;
+
 import com.example.vetcalls.R;
 
 import android.content.Context;
@@ -11,7 +12,6 @@ import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-
 import androidx.annotation.NonNull;
 import androidx.fragment.app.FragmentActivity;
 import androidx.recyclerview.widget.RecyclerView;
@@ -23,20 +23,42 @@ import java.util.List;
 
 import com.example.vetcalls.obj.DogProfileViewHolder;
 
+/**
+ * RecyclerView adapter for displaying dog profiles in a list.
+ * Handles the binding of DogProfile data to view holders, manages current dog selection,
+ * and updates profile information in SharedPreferences and UI.
+ *
+ * @author Ofek Levi
+ */
 public class DogProfileAdapter extends RecyclerView.Adapter<DogProfileViewHolder> {
 
     private static final String TAG = "DogProfileAdapter";
     private List<DogProfile> dogList;
     private Context context;
-    private DogProfile currentDog; // פרופיל הכלב הנוכחי המוצג למעלה
-    private OnDogClickListener onDogClickListener; // ממשק מאזין לחיצות
+    private DogProfile currentDog;
+    private OnDogClickListener onDogClickListener;
     private int baseIndex = 0;
 
-    // ממשק לטיפול באירועי לחיצה על פרופיל כלב
+    /**
+     * Interface for handling dog profile click events.
+     */
     public interface OnDogClickListener {
+        /**
+         * Called when a dog profile is clicked.
+         *
+         * @param realIndex The real index of the clicked dog profile
+         */
         void onDogClick(int realIndex);
     }
 
+    /**
+     * Constructor for creating the adapter with dog profiles and click listener.
+     *
+     * @param context The context for the adapter
+     * @param dogList List of DogProfile objects to display
+     * @param listener Listener for handling dog profile clicks
+     * @param baseIndex Base index for calculating real positions
+     */
     public DogProfileAdapter(Context context, List<DogProfile> dogList, OnDogClickListener listener, int baseIndex) {
         this.context = context;
         this.dogList = dogList != null ? dogList : new ArrayList<>();
@@ -44,7 +66,12 @@ public class DogProfileAdapter extends RecyclerView.Adapter<DogProfileViewHolder
         this.baseIndex = baseIndex;
     }
 
-    // הגדרת הכלב הנוכחי המוצג למעלה - כעת רק מסמן את הכלב אבל לא מוציא אותו מהרשימה
+    /**
+     * Sets the current dog profile and updates the visual indication.
+     * Marks the specified dog as current and updates the UI accordingly.
+     *
+     * @param dog The DogProfile to set as current
+     */
     public void setCurrentDog(DogProfile dog) {
         if (currentDog != null) {
             currentDog.isCurrent = false;
@@ -64,6 +91,13 @@ public class DogProfileAdapter extends RecyclerView.Adapter<DogProfileViewHolder
         }
     }
 
+    /**
+     * Creates a new ViewHolder by inflating the dog item layout.
+     *
+     * @param parent The ViewGroup into which the new View will be added
+     * @param viewType The view type of the new View
+     * @return A new DogProfileViewHolder that holds a View for the dog item
+     */
     @NonNull
     @Override
     public DogProfileViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
@@ -71,15 +105,20 @@ public class DogProfileAdapter extends RecyclerView.Adapter<DogProfileViewHolder
         return new DogProfileViewHolder(view);
     }
 
+    /**
+     * Binds dog profile data to the ViewHolder at the specified position.
+     * Sets up the dog's name, age, image, and visual indication for current selection.
+     *
+     * @param holder The ViewHolder which should be updated
+     * @param position The position of the item within the adapter's data set
+     */
     @Override
     public void onBindViewHolder(@NonNull DogProfileViewHolder holder, int position) {
         DogProfile dog = dogList.get(position);
         Log.d(TAG, "Binding dog: " + dog.name + ", id: " + dog.dogId + ", isCurrent: " + dog.isCurrent);
 
-        // הצגת שם הכלב
         holder.dogName.setText(dog.name);
 
-        // הצגת גיל הכלב
         String ageText = "Age: ";
         if (dog.age != null) {
             ageText += dog.age;
@@ -88,12 +127,10 @@ public class DogProfileAdapter extends RecyclerView.Adapter<DogProfileViewHolder
         }
         holder.dogAge.setText(ageText);
 
-        // הסתרת הביו ברשימה (רק שם ותמונה וגיל)
         if (holder.dogBio != null) {
             holder.dogBio.setVisibility(View.GONE);
         }
 
-        // טעינת תמונה
         if (dog.profileImageUrl != null && !dog.profileImageUrl.isEmpty()) {
             Glide.with(context)
                     .load(dog.profileImageUrl)
@@ -104,7 +141,6 @@ public class DogProfileAdapter extends RecyclerView.Adapter<DogProfileViewHolder
             holder.dogImage.setImageResource(R.drawable.user_person_profile_avatar_icon_190943);
         }
 
-        // הוספת הדגשה לכלב הנוכחי המוצג
         if (dog.isCurrent) {
             holder.itemView.setBackgroundResource(R.drawable.selected_dog_background);
             Log.d(TAG, "Applying background to: " + dog.name);
@@ -112,7 +148,6 @@ public class DogProfileAdapter extends RecyclerView.Adapter<DogProfileViewHolder
             holder.itemView.setBackgroundResource(android.R.color.transparent);
         }
 
-        // הוספת מאזין לחיצה על כרטיס
         holder.itemView.setOnClickListener(v -> {
             Log.d(TAG, "Dog card clicked: " + dog.name);
             if (onDogClickListener != null) {
@@ -123,12 +158,16 @@ public class DogProfileAdapter extends RecyclerView.Adapter<DogProfileViewHolder
         });
     }
 
+    /**
+     * Updates the profile information in SharedPreferences and UI when a dog is selected.
+     * Saves dog details to SharedPreferences and updates the activity's UI components.
+     *
+     * @param dog The DogProfile to update the profile with
+     */
     private void updateProfile(DogProfile dog) {
-        // שימוש ב-SharedPreferences ישירות לעדכון הפרופיל
         SharedPreferences sharedPreferences = context.getSharedPreferences("UserProfile", Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = sharedPreferences.edit();
 
-        // שמירת פרטי הכלב המוצג בפרופיל העליון
         editor.putString("name", dog.name);
         editor.putString("age", dog.age != null ? dog.age : "");
         editor.putString("race", dog.race);
@@ -137,50 +176,41 @@ public class DogProfileAdapter extends RecyclerView.Adapter<DogProfileViewHolder
         editor.putString("allergies", dog.allergies);
         editor.putString("vaccines", dog.vaccines);
 
-        // שמירת המזהה של הכלב הנוכחי המוצג (חשוב לעריכה)
         if (dog.dogId != null) {
             editor.putString("dogId", dog.dogId);
         } else {
             editor.putString("currentDogName", dog.name);
         }
 
-        // בניית הביו המורחב שיוצג למעלה
         StringBuilder bioBuilder = new StringBuilder();
 
-        // הוספת משקל
         if (dog.weight != null && !dog.weight.isEmpty()) {
             bioBuilder.append("Weight: ").append(dog.weight).append(" kg\n");
         }
 
-        // הוספת גזע
         if (dog.race != null && !dog.race.isEmpty()) {
             bioBuilder.append("Race: ").append(dog.race).append("\n");
         }
 
-        // הוספת אלרגיות
         if (dog.allergies != null && !dog.allergies.isEmpty()) {
             bioBuilder.append("Allergies: ").append(dog.allergies).append("\n");
         }
 
-        // הוספת חיסונים
         if (dog.vaccines != null && !dog.vaccines.isEmpty()) {
             bioBuilder.append("Vaccines: ").append(dog.vaccines);
         }
 
         editor.putString("bio", bioBuilder.toString().trim());
 
-        // שמירת תמונה
         if (dog.profileImageUrl != null && !dog.profileImageUrl.isEmpty()) {
             editor.putString("profileImageUrl", dog.profileImageUrl);
         }
 
         editor.apply();
 
-        // עדכון ה-UI בפעילות
         if (context instanceof FragmentActivity) {
             FragmentActivity activity = (FragmentActivity) context;
 
-            // מציאת ה-views ועדכון שלהם
             TextView userName = activity.findViewById(R.id.userName);
             TextView dogAge = activity.findViewById(R.id.dogAge);
             TextView bioTextView = activity.findViewById(R.id.bioText);
@@ -202,17 +232,25 @@ public class DogProfileAdapter extends RecyclerView.Adapter<DogProfileViewHolder
             }
         }
 
-        // סימון הכלב הנוכחי ברשימה
         setCurrentDog(dog);
     }
 
-    // עדכון רשימת הכלבים
+    /**
+     * Updates the dog list with new data and refreshes the RecyclerView.
+     *
+     * @param newList The new list of DogProfile objects to display
+     */
     public void updateDogList(List<DogProfile> newList) {
         dogList.clear();
         dogList.addAll(newList);
         notifyDataSetChanged();
     }
 
+    /**
+     * Returns the total number of items in the data set held by the adapter.
+     *
+     * @return The total number of dog profiles
+     */
     @Override
     public int getItemCount() {
         return dogList.size();

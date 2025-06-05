@@ -41,6 +41,13 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+/**
+ * Fragment for displaying and managing appointments in a calendar interface.
+ * Provides calendar view with date selection and appointment list display.
+ * Supports different views for veterinarians and dog owners with appropriate functionality.
+ *
+ * @author Ofek Levi
+ */
 public class CalendarFragment extends Fragment {
 
     private static final String TAG = "CalendarFragment";
@@ -56,6 +63,15 @@ public class CalendarFragment extends Fragment {
     private String userId;
     private Button addAppointmentButton;
 
+    /**
+     * Creates and returns the view hierarchy associated with the fragment.
+     * Initializes UI components and loads appointments for the current date.
+     *
+     * @param inflater The LayoutInflater object that can be used to inflate views
+     * @param container The parent view that the fragment's UI should be attached to
+     * @param savedInstanceState If non-null, this fragment is being re-constructed from a previous saved state
+     * @return The View for the fragment's UI
+     */
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
@@ -66,25 +82,31 @@ public class CalendarFragment extends Fragment {
         setupCalendar();
         setupAddButton();
 
-        // טען תורים לתאריך הנוכחי
         selectedDate = getTodayDateString();
         loadAppointments(selectedDate);
 
         return view;
     }
 
+    /**
+     * Initializes all UI components and sets up the RecyclerView.
+     *
+     * @param view The root view of the fragment
+     */
     private void initViews(View view) {
         calendarView = view.findViewById(R.id.calendarView);
         appointmentsRecyclerView = view.findViewById(R.id.appointmentsRecyclerView);
         addAppointmentButton = view.findViewById(R.id.addAppointmentButton);
 
-        // אתחול RecyclerView
         appointmentList = new ArrayList<>();
         appointmentAdapter = new AppointmentAdapter(appointmentList, requireActivity(), true);
         appointmentsRecyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
         appointmentsRecyclerView.setAdapter(appointmentAdapter);
     }
 
+    /**
+     * Initializes data sources and determines user type from SharedPreferences.
+     */
     private void initData() {
         db = FirebaseFirestore.getInstance();
         userId = FirebaseAuth.getInstance().getCurrentUser().getUid();
@@ -94,15 +116,20 @@ public class CalendarFragment extends Fragment {
         Log.d(TAG, "User initialized - userId: " + userId + ", isVet: " + isVet);
     }
 
+    /**
+     * Sets up the calendar view with date change listener.
+     */
     private void setupCalendar() {
         calendarView.setOnDateChangeListener((view1, year, month, dayOfMonth) -> {
-            // ודא פורמט תואם ל-AddAppointmentFragment
             selectedDate = String.format(Locale.getDefault(), "%d-%d-%d", year, month + 1, dayOfMonth);
             Log.d(TAG, "Date selected: " + selectedDate);
             loadAppointments(selectedDate);
         });
     }
 
+    /**
+     * Configures the add appointment button based on user type.
+     */
     private void setupAddButton() {
         if (isVet) {
             addAppointmentButton.setText("Add appointment for patient");
@@ -112,6 +139,9 @@ public class CalendarFragment extends Fragment {
         addAppointmentButton.setOnClickListener(v -> openAddAppointmentFragment());
     }
 
+    /**
+     * Opens the add appointment fragment with the selected date.
+     */
     private void openAddAppointmentFragment() {
         Bundle bundle = new Bundle();
         bundle.putString("selectedDate", selectedDate);
@@ -127,6 +157,11 @@ public class CalendarFragment extends Fragment {
         transaction.commit();
     }
 
+    /**
+     * Loads appointments for the specified date based on user type.
+     *
+     * @param date The date to load appointments for in yyyy-M-d format
+     */
     private void loadAppointments(String date) {
         Log.d(TAG, "Loading appointments for date: " + date + ", isVet: " + isVet);
 
@@ -140,6 +175,11 @@ public class CalendarFragment extends Fragment {
         }
     }
 
+    /**
+     * Loads appointments for veterinarian users from their appointments collection.
+     *
+     * @param date The date to load appointments for
+     */
     private void loadVetAppointments(String date) {
         Log.d(TAG, "Loading vet appointments for: " + date);
 
@@ -155,15 +195,14 @@ public class CalendarFragment extends Fragment {
 
                     for (QueryDocumentSnapshot document : querySnapshots) {
                         Map<String, Object> appointmentData = document.getData();
-                        appointmentData.put("documentId", document.getId()); // הוסף ID למחיקה/עריכה
+                        appointmentData.put("documentId", document.getId());
                         boolean isCompleted = appointmentData.get("completed") instanceof Boolean && (Boolean) appointmentData.get("completed");
                         String apptDate = (String) appointmentData.get("date");
                         String apptTime = (String) appointmentData.get("startTime");
                         if (!isCompleted) {
-                            // אם השעה עברה, עדכן ל-completed בפיירסטור
                             if (!isFutureAppointment(apptDate, apptTime)) {
                                 markAppointmentCompletedForVet(document.getId(), (String)appointmentData.get("dogId"), userId);
-                                continue; // לא להציג תורים שהסתיימו
+                                continue;
                             }
                             appointmentList.add(appointmentData);
                             Log.d(TAG, "Added vet appointment: " + appointmentData.get("type") + " at " + appointmentData.get("startTime"));
@@ -179,6 +218,11 @@ public class CalendarFragment extends Fragment {
                 });
     }
 
+    /**
+     * Loads appointments for dog owner users by querying their dogs' appointments.
+     *
+     * @param date The date to load appointments for
+     */
     private void loadPatientAppointments(String date) {
         Log.d(TAG, "Loading patient appointments for: " + date);
         Log.d(TAG, "selectedDate: " + date);
@@ -268,6 +312,13 @@ public class CalendarFragment extends Fragment {
                 });
     }
 
+    /**
+     * Determines whether an appointment should be displayed based on its date and time.
+     *
+     * @param date The appointment date
+     * @param startTime The appointment start time
+     * @return true if the appointment should be shown, false otherwise
+     */
     private boolean shouldShowAppointment(String date, String startTime) {
         try {
             SimpleDateFormat sdf = new SimpleDateFormat("yyyy-M-d", Locale.getDefault());
@@ -275,19 +326,24 @@ public class CalendarFragment extends Fragment {
             Calendar apptCal = Calendar.getInstance();
             apptCal.setTime(appointmentDate);
             Calendar now = Calendar.getInstance();
-            // אם התור היום
             if (apptCal.get(Calendar.YEAR) == now.get(Calendar.YEAR) &&
-                apptCal.get(Calendar.MONTH) == now.get(Calendar.MONTH) &&
-                apptCal.get(Calendar.DAY_OF_MONTH) == now.get(Calendar.DAY_OF_MONTH)) {
+                    apptCal.get(Calendar.MONTH) == now.get(Calendar.MONTH) &&
+                    apptCal.get(Calendar.DAY_OF_MONTH) == now.get(Calendar.DAY_OF_MONTH)) {
                 return true;
             }
-            // אם התור בעתיד
             return appointmentDate != null && appointmentDate.after(now.getTime());
         } catch (Exception e) {
-            return true; // אם יש שגיאה, תציג ליתר ביטחון
+            return true;
         }
     }
 
+    /**
+     * Checks if an appointment is in the future based on date and time.
+     *
+     * @param date The appointment date
+     * @param startTime The appointment start time
+     * @return true if the appointment is in the future, false otherwise
+     */
     private boolean isFutureAppointment(String date, String startTime) {
         try {
             SimpleDateFormat sdf = new SimpleDateFormat("yyyy-M-d HH:mm", Locale.getDefault());
@@ -298,37 +354,52 @@ public class CalendarFragment extends Fragment {
         }
     }
 
+    /**
+     * Marks an appointment as completed in all relevant Firestore collections.
+     *
+     * @param appointmentId The appointment's unique identifier
+     * @param dogId The dog's unique identifier
+     * @param vetId The veterinarian's unique identifier
+     */
     private void markAppointmentCompletedEverywhere(String appointmentId, String dogId, String vetId) {
-        // עדכון אצל הווטרינר
         db.collection("Veterinarians")
-          .document(vetId)
-          .collection("Appointments")
-          .document(appointmentId)
-          .update("completed", true)
-          .addOnSuccessListener(aVoid -> Log.d(TAG, "Appointment marked as completed for vet: " + appointmentId))
-          .addOnFailureListener(e -> Log.e(TAG, "Failed to update appointment for vet: " + appointmentId, e));
+                .document(vetId)
+                .collection("Appointments")
+                .document(appointmentId)
+                .update("completed", true)
+                .addOnSuccessListener(aVoid -> Log.d(TAG, "Appointment marked as completed for vet: " + appointmentId))
+                .addOnFailureListener(e -> Log.e(TAG, "Failed to update appointment for vet: " + appointmentId, e));
 
-        // עדכון אצל הכלב
         db.collection("DogProfiles")
-          .document(dogId)
-          .collection("Appointments")
-          .document(appointmentId)
-          .update("completed", true)
-          .addOnSuccessListener(aVoid -> Log.d(TAG, "Appointment marked as completed for dog: " + appointmentId))
-          .addOnFailureListener(e -> Log.e(TAG, "Failed to update appointment for dog: " + appointmentId, e));
+                .document(dogId)
+                .collection("Appointments")
+                .document(appointmentId)
+                .update("completed", true)
+                .addOnSuccessListener(aVoid -> Log.d(TAG, "Appointment marked as completed for dog: " + appointmentId))
+                .addOnFailureListener(e -> Log.e(TAG, "Failed to update appointment for dog: " + appointmentId, e));
     }
 
+    /**
+     * Marks an appointment as completed using the FirestoreUserHelper utility.
+     *
+     * @param appointmentId The appointment's unique identifier
+     * @param dogId The dog's unique identifier
+     * @param vetId The veterinarian's unique identifier
+     */
     private void markAppointmentCompletedForVet(String appointmentId, String dogId, String vetId) {
         com.example.vetcalls.obj.FirestoreUserHelper.markAppointmentCompletedEverywhere(
-            getContext(),
-            appointmentId,
-            dogId,
-            vetId,
-            null,
-            (error) -> Log.e(TAG, "Failed to update appointment: " + error)
+                getContext(),
+                appointmentId,
+                dogId,
+                vetId,
+                null,
+                (error) -> Log.e(TAG, "Failed to update appointment: " + error)
         );
     }
 
+    /**
+     * Updates the UI to reflect the current appointment list state.
+     */
     private void updateUI() {
         appointmentAdapter.notifyDataSetChanged();
 
@@ -340,6 +411,11 @@ public class CalendarFragment extends Fragment {
         }
     }
 
+    /**
+     * Shows the empty view when no appointments are available.
+     *
+     * @param message The message to display in the empty view
+     */
     private void showEmptyView(String message) {
         View root = getView();
         if (root == null) return;
@@ -357,6 +433,9 @@ public class CalendarFragment extends Fragment {
         Log.d(TAG, "Showing empty view: " + message);
     }
 
+    /**
+     * Shows the appointments list view when appointments are available.
+     */
     private void showAppointmentsView() {
         View root = getView();
         if (root == null) return;
@@ -373,6 +452,11 @@ public class CalendarFragment extends Fragment {
         Log.d(TAG, "Showing appointments view");
     }
 
+    /**
+     * Gets today's date formatted as a string.
+     *
+     * @return Today's date in yyyy-M-d format
+     */
     private String getTodayDateString() {
         Calendar calendar = Calendar.getInstance();
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-M-d", Locale.getDefault());
@@ -381,12 +465,15 @@ public class CalendarFragment extends Fragment {
         return today;
     }
 
+    /**
+     * Called when the fragment becomes visible to the user.
+     * Refreshes appointment data for the selected date.
+     */
     @Override
     public void onResume() {
         super.onResume();
         Log.d(TAG, "onResume called");
 
-        // רענן את הנתונים כשחוזרים למסך
         if (!selectedDate.isEmpty()) {
             Log.d(TAG, "Refreshing appointments for: " + selectedDate);
             loadAppointments(selectedDate);
@@ -395,5 +482,4 @@ public class CalendarFragment extends Fragment {
             loadAppointments(selectedDate);
         }
     }
-
 }

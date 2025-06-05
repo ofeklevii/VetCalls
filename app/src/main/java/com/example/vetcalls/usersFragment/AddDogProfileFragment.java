@@ -49,6 +49,13 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * Fragment for adding a new dog profile to the system.
+ * Provides form-based input for dog information including personal details,
+ * medical information, veterinarian assignment, and profile image management.
+ *
+ * @author Ofek Levi
+ */
 public class AddDogProfileFragment extends Fragment {
 
     private static final String TAG = "AddDogProfileFragment";
@@ -71,10 +78,22 @@ public class AddDogProfileFragment extends Fragment {
     private List<String> vetNames = new ArrayList<>();
     private Map<String, String> vetNameToId = new HashMap<>();
 
-    private long lastVetChange = 0L; // Per-dog, for new dog
+    private long lastVetChange = 0L;
 
+    /**
+     * Default constructor for AddDogProfileFragment.
+     */
     public AddDogProfileFragment() {}
 
+    /**
+     * Creates and returns the view hierarchy associated with the fragment.
+     * Initializes all UI components and sets up event listeners.
+     *
+     * @param inflater The LayoutInflater object that can be used to inflate views
+     * @param container The parent view that the fragment's UI should be attached to
+     * @param savedInstanceState If non-null, this fragment is being re-constructed from a previous saved state
+     * @return The View for the fragment's UI
+     */
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_add_dog_profile, container, false);
@@ -104,6 +123,9 @@ public class AddDogProfileFragment extends Fragment {
         return view;
     }
 
+    /**
+     * Loads the list of available veterinarians from Firestore and populates the spinner.
+     */
     private void loadVetList() {
         db.collection("Veterinarians")
                 .get()
@@ -139,6 +161,11 @@ public class AddDogProfileFragment extends Fragment {
                 .addOnFailureListener(e -> Log.e(TAG, "Error loading vet list: " + e.getMessage()));
     }
 
+    /**
+     * Validates and saves the dog profile to Firestore with all associated data.
+     * Performs comprehensive validation, calculates age, uploads image if provided,
+     * and synchronizes data across multiple collections.
+     */
     private void saveDogProfile() {
         FirebaseUser currentUser = auth.getCurrentUser();
         if (currentUser == null) {
@@ -158,7 +185,6 @@ public class AddDogProfileFragment extends Fragment {
             return;
         }
 
-        // בדיקה אם וטרינר נבחר (שדה חובה)
         if (selectedVetId == null || selectedVetName == null || selectedVetId.isEmpty() || selectedVetName.isEmpty()) {
             Toast.makeText(requireContext(), "Please select a veterinarian to continue", Toast.LENGTH_SHORT).show();
             return;
@@ -173,13 +199,11 @@ public class AddDogProfileFragment extends Fragment {
 
         Log.d(TAG, "Saving new dog profile: " + name + ", ID: " + dogId + ", Owner: " + ownerId);
 
-        // שליחת המידע לפיירסטור
         FirestoreUserHelper.addDogProfile(
                 dogId, name, race, age, birthday, weight, allergies, vaccines,
                 bio, ownerId, selectedVetId, selectedVetName, now
         );
 
-        // שמירת lastVetChange ב-Firestore
         Map<String, Object> dogData = new HashMap<>();
         dogData.put("lastVetChange", now);
         db.collection("DogProfiles").document(dogId)
@@ -195,7 +219,6 @@ public class AddDogProfileFragment extends Fragment {
             uploadImageToFirebase(selectedImageUri, ownerId, dogId);
         }
 
-        // יצירת אובייקט DogProfile
         DogProfile newDogProfile = new DogProfile();
         newDogProfile.dogId = dogId;
         newDogProfile.name = name;
@@ -213,10 +236,8 @@ public class AddDogProfileFragment extends Fragment {
         newDogProfile.lastVetChange = now;
         newDogProfile.lastUpdated = now;
 
-        // עדכון גלובלי של שם ותמונה בצ'אטים
         com.example.vetcalls.obj.FirestoreUserHelper.updateDogProfileEverywhere(newDogProfile);
 
-        // שליחת המידע ל-HomeFragment כדי לעדכן את הפרופיל העליון
         Bundle result = new Bundle();
         result.putString("updatedBio", bio);
         result.putString("updatedDogAge", age);
@@ -230,21 +251,17 @@ public class AddDogProfileFragment extends Fragment {
         result.putString("vetId", selectedVetId);
         result.putString("vetName", selectedVetName);
 
-        // שליחת קישור התמונה ב-Bundle
         if (selectedImageUri != null) {
             result.putString("updatedImageUri", selectedImageUri.toString());
         }
 
-        // שליחת התוצאה ל-HomeFragment
         getParentFragmentManager().setFragmentResult("editProfileKey", result);
 
-        // שמירה ב-SharedPreferences (ללא lastVetChange)
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.putString("vetId", selectedVetId);
         editor.putString("vetName", selectedVetName);
         editor.apply();
 
-        // שמירה גם בתת-קולקשן Dogs של המשתמש
         Map<String, Object> dogBasicData = new HashMap<>();
         dogBasicData.put("dogId", dogId);
         dogBasicData.put("name", name);
@@ -252,31 +269,35 @@ public class AddDogProfileFragment extends Fragment {
         dogBasicData.put("vetId", selectedVetId);
         dogBasicData.put("age", age);
         db.collection("Users").document(ownerId)
-            .collection("Dogs").document(dogId)
-            .set(dogBasicData)
-            .addOnSuccessListener(aVoid -> Log.d(TAG, "Dog basic data saved to user's Dogs subcollection"))
-            .addOnFailureListener(e -> Log.e(TAG, "Error saving dog to user's Dogs subcollection: " + e.getMessage()));
+                .collection("Dogs").document(dogId)
+                .set(dogBasicData)
+                .addOnSuccessListener(aVoid -> Log.d(TAG, "Dog basic data saved to user's Dogs subcollection"))
+                .addOnFailureListener(e -> Log.e(TAG, "Error saving dog to user's Dogs subcollection: " + e.getMessage()));
 
-        // חזרה למסך הבית
         Toast.makeText(requireContext(), "Dog profile added", Toast.LENGTH_SHORT).show();
         navigateBack();
     }
 
-    // פונקציה חדשה לחזרה למסך הקודם
+    /**
+     * Navigates back to the previous screen using fragment manager or navigation component.
+     */
     private void navigateBack() {
-        // אפשרות 1: באמצעות Fragment Manager
         requireActivity().getSupportFragmentManager().popBackStack();
 
-        // אפשרות 2: באמצעות Navigation Component (אם הוא בשימוש)
         try {
             NavController navController = Navigation.findNavController(requireView());
             navController.navigateUp();
         } catch (Exception e) {
-            // אם Navigation לא זמין, נשתמש באפשרות 1
             requireActivity().getSupportFragmentManager().popBackStack();
         }
     }
 
+    /**
+     * Calculates the dog's age based on the provided birthday.
+     *
+     * @param birthday The dog's birthday in yyyy-MM-dd format
+     * @return The calculated age as a string, or "0" if parsing fails
+     */
     private String calculateDogAge(String birthday) {
         SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
         try {
@@ -292,10 +313,18 @@ public class AddDogProfileFragment extends Fragment {
         }
     }
 
+    /**
+     * Builds a formatted biography string from the dog's information.
+     *
+     * @param race The dog's breed
+     * @param weight The dog's weight
+     * @param allergies The dog's allergies
+     * @param vaccines The dog's vaccination information
+     * @return A formatted biography string
+     */
     private String buildBio(String race, String weight, String allergies, String vaccines) {
         StringBuilder bioBuilder = new StringBuilder();
 
-        // הגזע יוצג בנפרד, לא בביו
         if (!weight.isEmpty()) {
             bioBuilder.append("Weight: ").append(weight).append(" kg\n");
         }
@@ -309,6 +338,9 @@ public class AddDogProfileFragment extends Fragment {
         return bioBuilder.toString().trim();
     }
 
+    /**
+     * Shows a dialog for selecting image source (gallery or camera).
+     */
     private void showImagePickerDialog() {
         String[] options = {"Choose from Gallery", "Take a Photo"};
         new AlertDialog.Builder(requireContext())
@@ -323,16 +355,29 @@ public class AddDogProfileFragment extends Fragment {
                 .show();
     }
 
+    /**
+     * Launches an intent to pick an image from the device gallery.
+     */
     private void pickImageFromGallery() {
         Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
         startActivityForResult(intent, REQUEST_IMAGE_PICK);
     }
 
+    /**
+     * Launches an intent to capture a photo using the device camera.
+     */
     private void takePhoto() {
         Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
         startActivityForResult(intent, REQUEST_IMAGE_CAPTURE);
     }
 
+    /**
+     * Handles the result from image selection or capture activities.
+     *
+     * @param requestCode The request code used to start the activity
+     * @param resultCode The result code returned by the activity
+     * @param data The intent data containing the result
+     */
     @Override
     public void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -348,6 +393,12 @@ public class AddDogProfileFragment extends Fragment {
         }
     }
 
+    /**
+     * Converts a bitmap to a URI for storage and display purposes.
+     *
+     * @param bitmap The bitmap to convert
+     * @return URI representation of the bitmap
+     */
     private Uri getImageUriFromBitmap(Bitmap bitmap) {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         bitmap.compress(Bitmap.CompressFormat.PNG, 100, baos);
@@ -356,6 +407,13 @@ public class AddDogProfileFragment extends Fragment {
         return Uri.parse(path);
     }
 
+    /**
+     * Uploads the selected image to Firebase Storage and updates Firestore with the download URL.
+     *
+     * @param imageUri The URI of the image to upload
+     * @param ownerId The owner's unique identifier
+     * @param dogId The dog's unique identifier
+     */
     private void uploadImageToFirebase(Uri imageUri, String ownerId, String dogId) {
         FirebaseStorage storage = FirebaseStorage.getInstance();
         StorageReference storageRef = storage.getReference().child("profile_pics/" + ownerId + "/" + UUID.randomUUID().toString() + ".jpg");
@@ -364,22 +422,18 @@ public class AddDogProfileFragment extends Fragment {
             storageRef.getDownloadUrl().addOnSuccessListener(uri -> {
                 Log.d(TAG, "Image uploaded successfully: " + uri.toString());
 
-                // עכשיו נעשה עדכון של ה-URL ב-Firestore תחת DogProfiles
                 FirestoreUserHelper.uploadDogProfileImage(imageUri, dogId, ownerId, new FirestoreUserHelper.OnImageUploadListener() {
                     @Override
                     public void onUploadSuccess(String imageUrl) {
-                        // כאן אפשר להוסיף עוד לוגיקה אחרי העלאת התמונה והעדכון
                         Log.d(TAG, "Image URL successfully updated in Firestore: " + imageUrl);
                     }
 
                     @Override
                     public void onUploadFailed(Exception exception) {
-                        // במקרה של כישלון
                         Log.e(TAG, "Failed to update image URL in Firestore: " + exception.getMessage());
                     }
                 });
             });
         }).addOnFailureListener(e -> Log.e(TAG, "Image upload failed", e));
     }
-
 }

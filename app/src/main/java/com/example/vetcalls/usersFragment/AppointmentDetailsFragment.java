@@ -19,6 +19,13 @@ import com.example.vetcalls.obj.FirestoreUserHelper;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 
+/**
+ * Fragment for displaying detailed appointment information.
+ * Provides comprehensive appointment details view with editing, deletion, and completion capabilities.
+ * Supports both veterinarian and dog owner perspectives with appropriate action visibility.
+ *
+ * @author Ofek Levi
+ */
 public class AppointmentDetailsFragment extends Fragment {
 
     private static final String ARG_DATE = "date";
@@ -26,18 +33,25 @@ public class AppointmentDetailsFragment extends Fragment {
     private static final String ARG_DETAILS = "details";
     private static final String ARG_VETERINARIAN = "veterinarian";
     private static final String ARG_TYPE = "type";
-    // פרמטרים נוספים לעריכה ומחיקה
     private static final String ARG_APPOINTMENT_ID = "appointmentId";
     private static final String ARG_DOG_ID = "dogId";
     private static final String ARG_VET_ID = "vetId";
     private static final String ARG_DOG_NAME = "dogName";
 
-    // משתני מחלקה לשמירת ערכי התור
     private String appointmentId, dogId, vetId, date, time, type, vetName, dogName, details;
     private boolean showActions = true;
     private Button editButton, deleteButton, markCompletedButton;
 
-    // מתודה קיימת - תאימות לאחור
+    /**
+     * Creates a new instance with basic appointment information for backward compatibility.
+     *
+     * @param date Appointment date
+     * @param time Appointment time
+     * @param details Appointment details/notes
+     * @param veterinarian Veterinarian name
+     * @param type Appointment type
+     * @return New AppointmentDetailsFragment instance
+     */
     public static AppointmentDetailsFragment newInstance(String date, String time, String details,
                                                          String veterinarian, String type) {
         AppointmentDetailsFragment fragment = new AppointmentDetailsFragment();
@@ -51,7 +65,20 @@ public class AppointmentDetailsFragment extends Fragment {
         return fragment;
     }
 
-    // מתודה חדשה עם כל הפרטים לעריכה ומחיקה
+    /**
+     * Creates a new instance with full appointment information for editing and deletion capabilities.
+     *
+     * @param date Appointment date
+     * @param time Appointment time
+     * @param details Appointment details/notes
+     * @param veterinarian Veterinarian name
+     * @param type Appointment type
+     * @param appointmentId Unique appointment identifier
+     * @param dogId Dog's unique identifier
+     * @param vetId Veterinarian's unique identifier
+     * @param dogName Dog's name
+     * @return New AppointmentDetailsFragment instance with full functionality
+     */
     public static AppointmentDetailsFragment newInstanceFull(String date, String time, String details,
                                                              String veterinarian, String type, String appointmentId,
                                                              String dogId, String vetId, String dogName) {
@@ -70,12 +97,29 @@ public class AppointmentDetailsFragment extends Fragment {
         return fragment;
     }
 
-    // מתודת עזר לתאימות לאחור
+    /**
+     * Helper method for backward compatibility with simplified parameters.
+     *
+     * @param date Appointment date
+     * @param time Appointment time
+     * @param details Appointment details/notes
+     * @param veterinarian Veterinarian name
+     * @return New AppointmentDetailsFragment instance
+     */
     public static AppointmentDetailsFragment newInstance(String date, String time, String details,
                                                          String veterinarian) {
         return newInstance(date, time, details, veterinarian, "");
     }
 
+    /**
+     * Creates and returns the view hierarchy associated with the fragment.
+     * Initializes UI components and loads appointment data from Firestore.
+     *
+     * @param inflater The LayoutInflater object that can be used to inflate views
+     * @param container The parent view that the fragment's UI should be attached to
+     * @param savedInstanceState If non-null, this fragment is being re-constructed from a previous saved state
+     * @return The View for the fragment's UI
+     */
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
@@ -94,7 +138,6 @@ public class AppointmentDetailsFragment extends Fragment {
         markCompletedButton = view.findViewById(R.id.markCompletedButton);
         View loadingProgressBar = view.findViewById(R.id.loadingProgressBar);
 
-        // קבלת מזהים מה-arguments
         if (getArguments() != null) {
             appointmentId = getArguments().getString(ARG_APPOINTMENT_ID, "");
             dogId = getArguments().getString(ARG_DOG_ID, "");
@@ -103,11 +146,9 @@ public class AppointmentDetailsFragment extends Fragment {
         }
         android.util.Log.d("AppointmentDetails", "onCreateView showActions=" + showActions);
 
-        // הסתר את כל ה-UI פרט ל-ProgressBar
         setUiVisibility(view, false);
         loadingProgressBar.setVisibility(View.VISIBLE);
 
-        // הסתרה מיידית של הכפתורים בהתאם ל-showActions
         if (editButton != null) editButton.setVisibility(showActions ? View.VISIBLE : View.GONE);
         if (deleteButton != null) deleteButton.setVisibility(showActions ? View.VISIBLE : View.GONE);
         if (markCompletedButton != null) markCompletedButton.setVisibility(showActions ? View.VISIBLE : View.GONE);
@@ -115,36 +156,28 @@ public class AppointmentDetailsFragment extends Fragment {
         SharedPreferences prefs = requireActivity().getSharedPreferences("UserProfile", android.content.Context.MODE_PRIVATE);
         boolean isVet = prefs.getBoolean("isVet", false);
 
-        // טען תמיד את פרטי התור מה-DB
         if (appointmentId != null && !appointmentId.isEmpty() && dogId != null && !dogId.isEmpty()) {
             FirebaseFirestore.getInstance().collection("DogProfiles").document(dogId).collection("Appointments").document(appointmentId)
-                .get().addOnSuccessListener(documentSnapshot -> {
-                    if (documentSnapshot.exists()) {
-                        updateUIWithAppointment(documentSnapshot);
-                        // הצג את ה-UI והסתר את ה-ProgressBar
-                        setUiVisibility(view, true);
+                    .get().addOnSuccessListener(documentSnapshot -> {
+                        if (documentSnapshot.exists()) {
+                            updateUIWithAppointment(documentSnapshot);
+                            setUiVisibility(view, true);
+                            loadingProgressBar.setVisibility(View.GONE);
+
+                            if (editButton != null) editButton.setVisibility(showActions ? View.VISIBLE : View.GONE);
+                            if (deleteButton != null) deleteButton.setVisibility(showActions ? View.VISIBLE : View.GONE);
+                            if (markCompletedButton != null) markCompletedButton.setVisibility(showActions && isVet ? View.VISIBLE : View.GONE);
+                        } else {
+                            loadingProgressBar.setVisibility(View.GONE);
+                            Toast.makeText(requireContext(), "Appointment not found", Toast.LENGTH_SHORT).show();
+                            requireActivity().getSupportFragmentManager().popBackStack();
+                        }
+                    }).addOnFailureListener(e -> {
                         loadingProgressBar.setVisibility(View.GONE);
-                        
-                        // עדכון נראה של הכפתורים בהתאם ל-showActions
-                        if (editButton != null) editButton.setVisibility(showActions ? View.VISIBLE : View.GONE);
-                        if (deleteButton != null) deleteButton.setVisibility(showActions ? View.VISIBLE : View.GONE);
-                        if (markCompletedButton != null) markCompletedButton.setVisibility(showActions && isVet ? View.VISIBLE : View.GONE);
-                    } else {
-                        // לא נמצא תור - הסתר ProgressBar, הצג הודעה
-                        loadingProgressBar.setVisibility(View.GONE);
-                        Toast.makeText(requireContext(), "Appointment not found", Toast.LENGTH_SHORT).show();
-                        // חזור למסך הקודם
+                        Toast.makeText(requireContext(), "Failed to load appointment: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                         requireActivity().getSupportFragmentManager().popBackStack();
-                    }
-                }).addOnFailureListener(e -> {
-                    // שגיאה בטעינה - הסתר ProgressBar, הצג הודעה
-                    loadingProgressBar.setVisibility(View.GONE);
-                    Toast.makeText(requireContext(), "Failed to load appointment: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                    // חזור למסך הקודם
-                    requireActivity().getSupportFragmentManager().popBackStack();
-                });
+                    });
         } else {
-            // אין מספיק מידע לטעינת התור
             loadingProgressBar.setVisibility(View.GONE);
             Toast.makeText(requireContext(), "Missing appointment information", Toast.LENGTH_SHORT).show();
             requireActivity().getSupportFragmentManager().popBackStack();
@@ -155,6 +188,13 @@ public class AppointmentDetailsFragment extends Fragment {
         return view;
     }
 
+    /**
+     * Called immediately after onCreateView has returned.
+     * Configures button visibility based on user type and action permissions.
+     *
+     * @param view The View returned by onCreateView
+     * @param savedInstanceState If non-null, this fragment is being re-constructed from a previous saved state
+     */
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
@@ -166,14 +206,19 @@ public class AppointmentDetailsFragment extends Fragment {
         if (markCompletedButton != null) markCompletedButton.setVisibility(showActions && isVet ? View.VISIBLE : View.GONE);
     }
 
-    // פונקציה שמסתירה/מציגה את כל ה-UI פרט ל-ProgressBar
+    /**
+     * Controls the visibility of UI components during loading states.
+     *
+     * @param view The root view containing UI components
+     * @param visible Whether UI components should be visible
+     */
     private void setUiVisibility(View view, boolean visible) {
         if (view == null) return;
-        
+
         int uiVisibility = visible ? View.VISIBLE : View.GONE;
         int[] ids = new int[] {
-            R.id.textDate, R.id.textTime, R.id.textDetails, R.id.textVetName, R.id.textAppointmentType,
-            R.id.textDogName, R.id.appointmentTitle, R.id.backButton
+                R.id.textDate, R.id.textTime, R.id.textDetails, R.id.textVetName, R.id.textAppointmentType,
+                R.id.textDogName, R.id.appointmentTitle, R.id.backButton
         };
         for (int id : ids) {
             View v = view.findViewById(id);
@@ -181,13 +226,20 @@ public class AppointmentDetailsFragment extends Fragment {
         }
     }
 
+    /**
+     * Navigates to the appointment editing screen with pre-filled data.
+     *
+     * @param appointmentId Unique appointment identifier
+     * @param dogId Dog's unique identifier
+     * @param vetId Veterinarian's unique identifier
+     * @param date Appointment date
+     */
     private void editAppointment(String appointmentId, String dogId, String vetId, String date) {
         if (appointmentId == null || dogId == null || vetId == null) {
             Toast.makeText(requireContext(), "Missing appointment information", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // פתח את מסך העריכה
         Bundle args = new Bundle();
         args.putString("selectedDate", date);
         args.putBoolean("isEdit", true);
@@ -204,6 +256,13 @@ public class AppointmentDetailsFragment extends Fragment {
                 .commit();
     }
 
+    /**
+     * Shows a confirmation dialog before deleting an appointment.
+     *
+     * @param appointmentId Unique appointment identifier
+     * @param dogId Dog's unique identifier
+     * @param vetId Veterinarian's unique identifier
+     */
     private void showDeleteConfirmation(String appointmentId, String dogId, String vetId) {
         new AlertDialog.Builder(requireContext())
                 .setTitle("Delete Appointment")
@@ -213,33 +272,35 @@ public class AppointmentDetailsFragment extends Fragment {
                 .show();
     }
 
+    /**
+     * Deletes an appointment from all relevant Firestore collections.
+     *
+     * @param appointmentId Unique appointment identifier
+     * @param dogId Dog's unique identifier
+     * @param vetId Veterinarian's unique identifier
+     */
     private void deleteAppointment(String appointmentId, String dogId, String vetId) {
         if (appointmentId == null || dogId == null || vetId == null) {
             Toast.makeText(requireContext(), "Missing appointment information for deletion", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // הצג דיאלוג טעינה
         AlertDialog loadingDialog = new AlertDialog.Builder(requireContext())
                 .setMessage("Deleting appointment...")
                 .setCancelable(false)
                 .create();
         loadingDialog.show();
 
-        // מחק את התור בכל המקומות
         FirestoreUserHelper.deleteAppointmentCompletely(appointmentId, dogId, vetId,
                 () -> {
-                    // הצלחה
                     if (loadingDialog.isShowing()) {
                         loadingDialog.dismiss();
                     }
                     Toast.makeText(requireContext(), "Appointment deleted successfully", Toast.LENGTH_SHORT).show();
 
-                    // חזור למסך הקודם (Calendar)
                     requireActivity().getSupportFragmentManager().popBackStack();
                 },
                 (error) -> {
-                    // שגיאה
                     if (loadingDialog.isShowing()) {
                         loadingDialog.dismiss();
                     }
@@ -247,7 +308,11 @@ public class AppointmentDetailsFragment extends Fragment {
                 });
     }
 
-    // עדכון כל השדות במסך לפי מסמך התור
+    /**
+     * Updates all UI fields with appointment data from Firestore document.
+     *
+     * @param doc Firestore document snapshot containing appointment data
+     */
     private void updateUIWithAppointment(com.google.firebase.firestore.DocumentSnapshot doc) {
         date = doc.getString("date");
         time = doc.getString("startTime");
@@ -255,7 +320,6 @@ public class AppointmentDetailsFragment extends Fragment {
         vetName = doc.getString("vetName");
         dogName = doc.getString("dogName");
         details = doc.getString("notes");
-        // שמירה של מזהים
         appointmentId = doc.getString("id");
         dogId = doc.getString("dogId");
         vetId = doc.getString("vetId");
@@ -272,13 +336,18 @@ public class AppointmentDetailsFragment extends Fragment {
         android.util.Log.d("AppointmentDetails", "updateUIWithAppointment showActions=" + showActions);
         SharedPreferences prefs = requireActivity().getSharedPreferences("UserProfile", android.content.Context.MODE_PRIVATE);
         boolean isVet = prefs.getBoolean("isVet", false);
-        
-        // עדכון נראה של הכפתורים בהתאם ל-showActions
+
         if (editButton != null) editButton.setVisibility(showActions ? View.VISIBLE : View.GONE);
         if (deleteButton != null) deleteButton.setVisibility(showActions ? View.VISIBLE : View.GONE);
         if (markCompletedButton != null) markCompletedButton.setVisibility(showActions && isVet ? View.VISIBLE : View.GONE);
     }
 
+    /**
+     * Marks an appointment as completed across all relevant Firestore collections.
+     * Only available to veterinarians.
+     *
+     * @param appointmentId Unique appointment identifier
+     */
     private void markAppointmentCompleted(String appointmentId) {
         String dogId = null;
         String vetId = null;
@@ -291,12 +360,12 @@ public class AppointmentDetailsFragment extends Fragment {
             return;
         }
         com.example.vetcalls.obj.FirestoreUserHelper.markAppointmentCompletedEverywhere(
-            requireContext(),
-            appointmentId,
-            dogId,
-            vetId,
-            () -> Toast.makeText(requireContext(), "Appointment marked as completed", Toast.LENGTH_SHORT).show(),
-            (error) -> Toast.makeText(requireContext(), "Failed to update appointment: " + error, Toast.LENGTH_SHORT).show()
+                requireContext(),
+                appointmentId,
+                dogId,
+                vetId,
+                () -> Toast.makeText(requireContext(), "Appointment marked as completed", Toast.LENGTH_SHORT).show(),
+                (error) -> Toast.makeText(requireContext(), "Failed to update appointment: " + error, Toast.LENGTH_SHORT).show()
         );
     }
 }

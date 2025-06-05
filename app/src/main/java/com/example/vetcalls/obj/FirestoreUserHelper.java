@@ -21,29 +21,41 @@ import java.util.Map;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Helper class for managing user and veterinarian data operations in Firestore.
+ * Provides comprehensive functionality for user creation, profile management,
+ * image uploads, appointment handling, and data synchronization across collections.
+ *
+ * @author Ofek Levi
+ */
 public class FirestoreUserHelper {
 
     private static final String TAG = "FirestoreUserHelper";
     private static final FirebaseFirestore db = FirebaseFirestore.getInstance();
     private static final FirebaseStorage storage = FirebaseStorage.getInstance();
 
-    // יצירת משתמש או וטרינר
+    /**
+     * Creates a new user or veterinarian in the Firestore database.
+     * Saves user data to the Users collection and additionally to Veterinarians collection if the user is a vet.
+     *
+     * @param user The authenticated Firebase user
+     * @param isVet Whether the user is a veterinarian
+     * @param vetIdIfUserHas Optional veterinarian ID if the user has one assigned
+     */
     public static void createUser(@NonNull FirebaseUser user, boolean isVet, @Nullable String vetIdIfUserHas) {
         if (user == null) return;
 
         User userObj = new User(user.getEmail(), isVet, user.getUid());
 
-        // שמירת כל המשתמשים בקולקשיין Users
         db.collection("Users").document(user.getUid())
                 .set(userObj)
                 .addOnSuccessListener(aVoid -> Log.d(TAG, "User profile saved to Users collection"))
                 .addOnFailureListener(e -> Log.e(TAG, "Error saving user profile", e));
 
-        // אם המשתמש הוא וטרינר, נשמור אותו גם בקולקשיין Veterinarians
         if (isVet) {
             Veterinarian vet = new Veterinarian();
             vet.email = user.getEmail();
-            vet.fullName = ""; // אפשר לעדכן בהמשך
+            vet.fullName = "";
             db.collection("Veterinarians").document(user.getUid())
                     .set(vet)
                     .addOnSuccessListener(aVoid -> Log.d(TAG, "Vet profile saved to Veterinarians collection"))
@@ -51,7 +63,13 @@ public class FirestoreUserHelper {
         }
     }
 
-    // העלאת תמונת פרופיל של וטרינר
+    /**
+     * Uploads a veterinarian's profile image to Firebase Storage and updates the database.
+     *
+     * @param imageUri The URI of the image to upload
+     * @param vetId The unique identifier of the veterinarian
+     * @param listener Callback listener for upload success or failure
+     */
     public static void uploadVetProfileImage(Uri imageUri, String vetId, OnImageUploadListener listener) {
         if (imageUri == null) {
             if (listener != null) {
@@ -73,7 +91,6 @@ public class FirestoreUserHelper {
                 String imageUrl = uri.toString();
                 Log.d(TAG, "Vet image URL: " + imageUrl);
 
-                // עדכון ה-URL בקולקשיין Veterinarians
                 Veterinarian vet = new Veterinarian();
                 vet.profileImageUrl = imageUrl;
 
@@ -105,7 +122,23 @@ public class FirestoreUserHelper {
         });
     }
 
-    // הוספת פרופיל כלב - רק לאוסף DogProfiles
+    /**
+     * Adds a new dog profile to the DogProfiles collection and updates user references.
+     *
+     * @param dogId Unique identifier for the dog
+     * @param name Dog's name
+     * @param race Dog's breed
+     * @param age Dog's age
+     * @param birthday Dog's birthday
+     * @param weight Dog's weight
+     * @param allergies Dog's allergies information
+     * @param vaccines Dog's vaccination information
+     * @param bio Dog's biography
+     * @param ownerId Owner's unique identifier
+     * @param vetId Assigned veterinarian's unique identifier
+     * @param vetName Assigned veterinarian's name
+     * @param lastVetChange Timestamp of last veterinarian change
+     */
     public static void addDogProfile(String dogId, String name, String race, String age, String birthday,
                                      String weight, String allergies, String vaccines, String bio,
                                      String ownerId, String vetId, String vetName, long lastVetChange) {
@@ -127,35 +160,46 @@ public class FirestoreUserHelper {
         dogProfile.lastVetChange = lastVetChange;
         dogProfile.lastUpdated = System.currentTimeMillis();
 
-        // Save to DogProfiles collection
         db.collection("DogProfiles").document(dogId)
                 .set(dogProfile)
                 .addOnSuccessListener(aVoid -> {
                     Log.d(TAG, "Dog profile saved to DogProfiles");
-                    // Add reference to user's dogs collection
                     updateUserDogReferences(ownerId, dogId, name);
                 })
                 .addOnFailureListener(e -> Log.e(TAG, "Failed to save dog profile", e));
     }
 
-    // עדכון רשימת הכלבים של המשתמש
+    /**
+     * Updates the user's dog references by copying the full dog profile to the user's Dogs subcollection.
+     *
+     * @param ownerId The owner's unique identifier
+     * @param dogId The dog's unique identifier
+     * @param dogName The dog's name
+     */
     private static void updateUserDogReferences(String ownerId, String dogId, String dogName) {
-        // Load the full dog profile from DogProfiles and save all fields to the user's Dogs subcollection
         db.collection("DogProfiles").document(dogId).get().addOnSuccessListener(doc -> {
             if (doc.exists()) {
                 DogProfile dog = doc.toObject(DogProfile.class);
                 if (dog != null) {
                     db.collection("Users").document(ownerId)
-                        .collection("Dogs").document(dogId)
-                        .set(dog)
-                        .addOnSuccessListener(aVoid -> Log.d(TAG, "Dog reference added to user with all fields"))
-                        .addOnFailureListener(e -> Log.e(TAG, "Failed to add dog reference", e));
+                            .collection("Dogs").document(dogId)
+                            .set(dog)
+                            .addOnSuccessListener(aVoid -> Log.d(TAG, "Dog reference added to user with all fields"))
+                            .addOnFailureListener(e -> Log.e(TAG, "Failed to add dog reference", e));
                 }
             }
         });
     }
 
-    // העלאת תמונת פרופיל של כלב
+    /**
+     * Uploads a dog's profile image to Firebase Storage and updates the database.
+     * Also triggers global updates across all relevant collections.
+     *
+     * @param imageUri The URI of the image to upload
+     * @param dogId The dog's unique identifier
+     * @param ownerId The owner's unique identifier
+     * @param listener Callback listener for upload success or failure
+     */
     public static void uploadDogProfileImage(Uri imageUri, String dogId, String ownerId, OnImageUploadListener listener) {
         if (imageUri == null) {
             if (listener != null) {
@@ -173,7 +217,6 @@ public class FirestoreUserHelper {
             storageRef.getDownloadUrl().addOnSuccessListener(uri -> {
                 String imageUrl = uri.toString();
 
-                // עדכון ה-URL בקולקשיין DogProfiles בלבד
                 DogProfile dogProfile = new DogProfile();
                 dogProfile.profileImageUrl = imageUrl;
 
@@ -181,7 +224,6 @@ public class FirestoreUserHelper {
                         .set(dogProfile, SetOptions.merge())
                         .addOnSuccessListener(aVoid -> {
                             Log.d(TAG, "Image URL updated in DogProfiles");
-                            // עדכון גלובלי של שם ותמונה בצ'אטים
                             dogProfile.dogId = dogId;
                             updateDogProfileEverywhere(dogProfile);
                             if (listener != null) {
@@ -208,17 +250,36 @@ public class FirestoreUserHelper {
         });
     }
 
+    /**
+     * Interface for handling image upload callbacks.
+     */
     public interface OnImageUploadListener {
+        /**
+         * Called when image upload is successful.
+         *
+         * @param imageUrl The download URL of the uploaded image
+         */
         void onUploadSuccess(String imageUrl);
+
+        /**
+         * Called when image upload fails.
+         *
+         * @param e The exception that caused the failure
+         */
         void onUploadFailed(Exception e);
     }
 
+    /**
+     * Adds an appointment to both dog and veterinarian collections.
+     *
+     * @param appointmentId Unique identifier for the appointment
+     * @param appointmentData Map containing appointment details
+     */
     public static void addAppointment(String appointmentId, Map<String, Object> appointmentData) {
         String dogId = (String) appointmentData.get("dogId");
         String vetId = (String) appointmentData.get("vetId");
 
         if (dogId != null && !dogId.isEmpty()) {
-            // שמירה באוסף של הכלב
             db.collection("DogProfiles")
                     .document(dogId)
                     .collection("Appointments")
@@ -229,7 +290,6 @@ public class FirestoreUserHelper {
         }
 
         if (vetId != null && !vetId.isEmpty()) {
-            // שמירה באוסף של הוטרינר
             db.collection("Veterinarians")
                     .document(vetId)
                     .collection("Appointments")
@@ -240,7 +300,13 @@ public class FirestoreUserHelper {
         }
     }
 
-    // מחיקת פגישה
+    /**
+     * Deletes an appointment from both dog and veterinarian collections.
+     *
+     * @param appointmentId Unique identifier for the appointment
+     * @param dogId Dog's unique identifier
+     * @param vetId Veterinarian's unique identifier
+     */
     public static void deleteAppointment(String appointmentId, String dogId, String vetId) {
         if (dogId != null && !dogId.isEmpty()) {
             db.collection("DogProfiles")
@@ -263,13 +329,20 @@ public class FirestoreUserHelper {
         }
     }
 
-    // הוספת פונקציה חדשה למחיקה מלאה של תור עם callback-ים
+    /**
+     * Completely deletes an appointment from all locations with callback support.
+     *
+     * @param appointmentId Unique identifier for the appointment
+     * @param dogId Dog's unique identifier
+     * @param vetId Veterinarian's unique identifier
+     * @param onSuccess Callback to run on successful deletion
+     * @param onFailure Callback to run on deletion failure
+     */
     public static void deleteAppointmentCompletely(String appointmentId, String dogId, String vetId,
                                                    Runnable onSuccess,
                                                    java.util.function.Consumer<String> onFailure) {
         Log.d(TAG, "Starting complete deletion of appointment: " + appointmentId);
 
-        // מחיקה במקביל משני המקומות
         Task<Void> deleteDogAppointment = db.collection("DogProfiles")
                 .document(dogId)
                 .collection("Appointments")
@@ -282,7 +355,6 @@ public class FirestoreUserHelper {
                 .document(appointmentId)
                 .delete();
 
-        // חכה שהשתיים יסתיימו
         Tasks.whenAllComplete(deleteDogAppointment, deleteVetAppointment)
                 .addOnCompleteListener(task -> {
                     boolean allSuccessful = true;
@@ -308,6 +380,13 @@ public class FirestoreUserHelper {
                 });
     }
 
+    /**
+     * Adds a reminder to a user's Reminders subcollection.
+     *
+     * @param userId User's unique identifier
+     * @param reminderId Reminder's unique identifier
+     * @param reminderData Map containing reminder details
+     */
     public static void addReminderToUser(@NonNull String userId, @NonNull String reminderId, Map<String, Object> reminderData) {
         db.collection("Users").document(userId)
                 .collection("Reminders").document(reminderId)
@@ -316,10 +395,17 @@ public class FirestoreUserHelper {
                 .addOnFailureListener(e -> Log.e(TAG, "Failed to add reminder to user", e));
     }
 
+    /**
+     * Completely deletes a user and all associated data from the system.
+     * This includes profile images, dog profiles, appointments, and authentication data.
+     *
+     * @param userId User's unique identifier
+     * @param onSuccess Callback to run on successful deletion
+     * @param onFailure Callback to run on deletion failure
+     */
     public static void deleteUserCompletely(String userId, Runnable onSuccess, Runnable onFailure) {
         Log.d(TAG, "Starting deletion process for user: " + userId);
 
-        // שלב 1: בדיקה האם המשתמש קיים
         db.collection("Users").document(userId).get()
                 .addOnSuccessListener(userDoc -> {
                     if (!userDoc.exists()) {
@@ -328,18 +414,14 @@ public class FirestoreUserHelper {
                         return;
                     }
 
-                    // מעקב אחר משימות מחיקה
                     List<Task<Void>> deleteTasks = new ArrayList<>();
 
-                    // שלב 2: מחיקת תיקיות התמונות בסטורג' - תחילה נאסוף את מזהי הכלבים
                     db.collection("Users").document(userId).collection("Dogs").get()
                             .addOnSuccessListener(dogSnapshots -> {
                                 Log.d(TAG, "Found " + dogSnapshots.size() + " dogs to delete");
 
-                                // רשימת מזהי הכלבים לצורך מחיקה מאוחר יותר
                                 List<String> dogIds = new ArrayList<>();
 
-                                // רשימת משימות מחיקת תמונות מהסטורג'
                                 List<Task<Void>> deleteImageTasks = new ArrayList<>();
 
                                 for (QueryDocumentSnapshot dogDoc : dogSnapshots) {
@@ -347,7 +429,6 @@ public class FirestoreUserHelper {
                                     if (dogId != null && !dogId.isEmpty()) {
                                         dogIds.add(dogId);
 
-                                        // מחיקת תמונת הפרופיל של הכלב מהסטורג'
                                         StorageReference imageRef = storage.getReference()
                                                 .child("dog_profile_images/" + dogId + ".jpg");
                                         Task<Void> deleteImageTask = imageRef.delete();
@@ -355,17 +436,14 @@ public class FirestoreUserHelper {
                                     }
                                 }
 
-                                // בדיקה אם המשתמש הוא וטרינר - במקרה כזה נמחק גם את תמונת הפרופיל שלו
                                 Boolean isVet = userDoc.getBoolean("isVet");
                                 if (isVet != null && isVet) {
-                                    // מחיקת תמונת הפרופיל של הוטרינר מהסטורג'
                                     StorageReference vetImageRef = storage.getReference()
                                             .child("vet_profile_images/" + userId + ".jpg");
                                     Task<Void> deleteVetImageTask = vetImageRef.delete();
                                     deleteImageTasks.add(deleteVetImageTask);
                                 }
 
-                                // שלב 3: המתן לסיום מחיקת התמונות ואז התחל בתהליך מחיקת הנתונים
                                 Tasks.whenAllComplete(deleteImageTasks)
                                         .addOnCompleteListener(task -> {
                                             deleteUserData(userId, dogIds, onSuccess, onFailure);
@@ -382,27 +460,29 @@ public class FirestoreUserHelper {
                 });
     }
 
-    // פונקציה נפרדת למחיקת נתוני המשתמש לאחר מחיקת התמונות
+    /**
+     * Helper method for deleting user data after image deletion is complete.
+     *
+     * @param userId User's unique identifier
+     * @param dogIds List of dog IDs associated with the user
+     * @param onSuccess Callback to run on successful deletion
+     * @param onFailure Callback to run on deletion failure
+     */
     private static void deleteUserData(String userId, List<String> dogIds, Runnable onSuccess, Runnable onFailure) {
         Log.d(TAG, "Starting data deletion for user: " + userId + " with " + dogIds.size() + " dogs");
 
-        // רשימת משימות מחיקה
         List<Task<Void>> deleteTasks = new ArrayList<>();
 
-        // שלב 1: מחיקת כל הכלבים מקולקשיין DogProfiles
         for (String dogId : dogIds) {
-            // מחיקת התורים של הכלב
             db.collection("DogProfiles").document(dogId).collection("Appointments").get()
                     .addOnSuccessListener(appointments -> {
                         for (QueryDocumentSnapshot appointment : appointments) {
                             String appointmentId = appointment.getId();
                             String vetId = appointment.getString("vetId");
 
-                            // מחיקת התור מהכלב
                             Task<Void> deleteAppointmentTask = appointment.getReference().delete();
                             deleteTasks.add(deleteAppointmentTask);
 
-                            // מחיקת התור גם אצל הווטרינר אם קיים
                             if (vetId != null && !vetId.isEmpty()) {
                                 Task<Void> deleteVetAppointment = db.collection("Veterinarians")
                                         .document(vetId)
@@ -414,13 +494,11 @@ public class FirestoreUserHelper {
                         }
                     });
 
-            // מחיקת הכלב עצמו מ-DogProfiles
             Task<Void> deleteDogTask = db.collection("DogProfiles").document(dogId).delete();
             deleteTasks.add(deleteDogTask);
             Log.d(TAG, "Added task to delete dog: " + dogId);
         }
 
-        // שלב 2: מחיקת התזכורות של המשתמש
         db.collection("Users").document(userId).collection("Reminders").get()
                 .addOnSuccessListener(reminders -> {
                     for (QueryDocumentSnapshot reminder : reminders) {
@@ -429,7 +507,6 @@ public class FirestoreUserHelper {
                     }
                 });
 
-        // שלב 3: האם המשתמש הוא וטרינר? אם כן, מחק גם את התורים שלו
         db.collection("Users").document(userId).get()
                 .addOnSuccessListener(userDoc -> {
                     Boolean isVet = userDoc.getBoolean("isVet");
@@ -440,11 +517,9 @@ public class FirestoreUserHelper {
                                         String appointmentId = appointment.getId();
                                         String dogId = appointment.getString("dogId");
 
-                                        // מחיקת התור אצל הווטרינר
                                         Task<Void> deleteAppointmentTask = appointment.getReference().delete();
                                         deleteTasks.add(deleteAppointmentTask);
 
-                                        // מחיקת התור גם אצל הכלב אם קיים
                                         if (dogId != null && !dogId.isEmpty()) {
                                             Task<Void> deleteDogAppointment = db.collection("DogProfiles")
                                                     .document(dogId)
@@ -456,12 +531,10 @@ public class FirestoreUserHelper {
                                     }
                                 });
 
-                        // מחיקת הווטרינר מקולקשיין Veterinarians
                         Task<Void> deleteVetTask = db.collection("Veterinarians").document(userId).delete();
                         deleteTasks.add(deleteVetTask);
                     }
 
-                    // שלב 4: מחיקת תת-הקולקשיין Dogs של המשתמש
                     db.collection("Users").document(userId).collection("Dogs").get()
                             .addOnSuccessListener(dogsCollection -> {
                                 for (QueryDocumentSnapshot dogDoc : dogsCollection) {
@@ -469,12 +542,10 @@ public class FirestoreUserHelper {
                                     deleteTasks.add(deleteDogRefTask);
                                 }
 
-                                // שלב 5: המתן לסיום כל משימות המחיקה ואז מחק את המשתמש עצמו
                                 Tasks.whenAllComplete(deleteTasks)
                                         .addOnSuccessListener(results -> {
                                             Log.d(TAG, "All delete tasks completed. Results: " + results.size());
 
-                                            // ספירת השגיאות
                                             int errorCount = 0;
                                             for (Task task : results) {
                                                 if (!task.isSuccessful()) {
@@ -483,12 +554,10 @@ public class FirestoreUserHelper {
                                             }
                                             Log.d(TAG, "Tasks completed with " + errorCount + " errors");
 
-                                            // מחיקת מסמך המשתמש עצמו
                                             db.collection("Users").document(userId).delete()
                                                     .addOnSuccessListener(aVoid -> {
                                                         Log.d(TAG, "User document deleted successfully");
 
-                                                        // מחיקת המשתמש ממערכת האימות
                                                         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
                                                         if (user != null && user.getUid().equals(userId)) {
                                                             user.delete()
@@ -518,7 +587,10 @@ public class FirestoreUserHelper {
     }
 
     /**
-     * עדכון גלובלי של פרופיל כלב בכל המקומות הרלוונטיים במערכת
+     * Updates a dog profile across all relevant collections in the system.
+     * This includes DogProfiles, user's Dogs subcollection, veterinarian's Patients, and chat information.
+     *
+     * @param dogProfile The DogProfile object containing updated information
      */
     public static void updateDogProfileEverywhere(DogProfile dogProfile) {
         if (dogProfile == null || dogProfile.dogId == null) return;
@@ -527,22 +599,22 @@ public class FirestoreUserHelper {
         String vetId = dogProfile.vetId;
         String name = dogProfile.name;
         String imageUrl = dogProfile.profileImageUrl;
-        // 1. עדכון ב-DogProfiles
+
         db.collection("DogProfiles").document(dogId)
                 .set(dogProfile, SetOptions.merge());
-        // 2. עדכון בתת-קולקשיין Dogs של המשתמש
+
         if (ownerId != null) {
             db.collection("Users").document(ownerId)
                     .collection("Dogs").document(dogId)
                     .set(dogProfile, SetOptions.merge());
         }
-        // 3. עדכון בתת-קולקשיין Patients של הווטרינר
+
         if (vetId != null) {
             db.collection("Veterinarians").document(vetId)
                     .collection("Patients").document(dogId)
                     .set(dogProfile, SetOptions.merge());
         }
-        // 4. עדכון בצ'אטים (שם ותמונה)
+
         db.collection("Chats")
                 .whereEqualTo("dogId", dogId)
                 .get()
@@ -556,35 +628,45 @@ public class FirestoreUserHelper {
                 });
     }
 
+    /**
+     * Marks an appointment as completed across all relevant collections.
+     *
+     * @param context Application context
+     * @param appointmentId Appointment's unique identifier
+     * @param dogId Dog's unique identifier
+     * @param vetId Veterinarian's unique identifier
+     * @param onSuccess Callback to run on successful completion
+     * @param onError Callback to run on error with error message
+     */
     public static void markAppointmentCompletedEverywhere(android.content.Context context, String appointmentId, String dogId, String vetId, Runnable onSuccess, java.util.function.Consumer<String> onError) {
         FirebaseFirestore db = FirebaseFirestore.getInstance();
-        // עדכון אצל הווטרינר
+
         db.collection("Veterinarians")
-          .document(vetId)
-          .collection("Appointments")
-          .document(appointmentId)
-          .update("completed", true)
-          .addOnFailureListener(e -> {
-              if (onError != null) onError.accept("Vet: " + e.getMessage());
-          });
-        // עדכון אצל הכלב
+                .document(vetId)
+                .collection("Appointments")
+                .document(appointmentId)
+                .update("completed", true)
+                .addOnFailureListener(e -> {
+                    if (onError != null) onError.accept("Vet: " + e.getMessage());
+                });
+
         db.collection("DogProfiles")
-          .document(dogId)
-          .collection("Appointments")
-          .document(appointmentId)
-          .update("completed", true)
-          .addOnFailureListener(e -> {
-              if (onError != null) onError.accept("Dog: " + e.getMessage());
-          });
-        // עדכון באוסף הגלובלי
+                .document(dogId)
+                .collection("Appointments")
+                .document(appointmentId)
+                .update("completed", true)
+                .addOnFailureListener(e -> {
+                    if (onError != null) onError.accept("Dog: " + e.getMessage());
+                });
+
         db.collection("appointments")
-          .document(appointmentId)
-          .update("completed", true)
-          .addOnSuccessListener(aVoid -> {
-              if (onSuccess != null) onSuccess.run();
-          })
-          .addOnFailureListener(e -> {
-              if (onError != null) onError.accept("Global: " + e.getMessage());
-          });
+                .document(appointmentId)
+                .update("completed", true)
+                .addOnSuccessListener(aVoid -> {
+                    if (onSuccess != null) onSuccess.run();
+                })
+                .addOnFailureListener(e -> {
+                    if (onError != null) onError.accept("Global: " + e.getMessage());
+                });
     }
 }

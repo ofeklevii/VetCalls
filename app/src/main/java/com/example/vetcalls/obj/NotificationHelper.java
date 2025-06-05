@@ -13,17 +13,33 @@ import android.provider.Settings;
 import android.util.Log;
 import android.widget.Toast;
 
+/**
+ * Helper class for managing notification scheduling and cancellation.
+ * Handles notification channel creation, exact alarm scheduling with proper permission handling,
+ * and provides functionality for both scheduling and canceling notifications.
+ *
+ * @author Ofek Levi
+ */
 public class NotificationHelper {
+
     private static final String CHANNEL_ID = "appointment_channel";
     private static final String CHANNEL_NAME = "תזכורות תורים";
     private final Context context;
 
+    /**
+     * Constructor that initializes the NotificationHelper and creates the notification channel.
+     *
+     * @param context The application context
+     */
     public NotificationHelper(Context context) {
         this.context = context;
         createNotificationChannel();
     }
 
-    // יצירת ערוץ התראות (לאנדרואיד 8 ומעלה)
+    /**
+     * Creates a notification channel for Android 8.0 (API level 26) and above.
+     * Required for displaying notifications on newer Android versions.
+     */
     private void createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
@@ -40,9 +56,17 @@ public class NotificationHelper {
         }
     }
 
+    /**
+     * Schedules a notification to be displayed at a specific time.
+     * Handles permission checks for exact alarms on Android 12+ and creates unique request codes.
+     *
+     * @param context The application context
+     * @param title The notification title
+     * @param message The notification message content
+     * @param timeInMillis The time in milliseconds when the notification should be displayed
+     */
     @SuppressLint("ScheduleExactAlarm")
     public void scheduleNotification(Context context, String title, String message, long timeInMillis) {
-        // בדיקה שהזמן עתידי
         if (timeInMillis <= System.currentTimeMillis()) {
             Log.w("NotificationHelper", "Cannot schedule notification in the past");
             return;
@@ -53,7 +77,6 @@ public class NotificationHelper {
         intent.putExtra("title", title);
         intent.putExtra("message", message);
 
-        // יצירת מזהה ייחודי לכל התראה
         int requestCode = (int) (timeInMillis % Integer.MAX_VALUE);
 
         PendingIntent pendingIntent = PendingIntent.getBroadcast(
@@ -64,7 +87,6 @@ public class NotificationHelper {
         );
 
         if (alarmManager != null) {
-            // בדיקת הרשאות באנדרואיד 12 (S) ומעלה
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 if (!alarmManager.canScheduleExactAlarms()) {
                     openExactAlarmSettings(context);
@@ -72,7 +94,6 @@ public class NotificationHelper {
                 }
             }
 
-            // הגדרת ההתראה
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, timeInMillis, pendingIntent);
             } else {
@@ -83,7 +104,12 @@ public class NotificationHelper {
         }
     }
 
-    // פתיחת הגדרות הרשאות התראות
+    /**
+     * Opens the system settings for exact alarm permissions on Android 12+.
+     * Displays a toast message to guide the user through the permission process.
+     *
+     * @param context The application context
+     */
     private void openExactAlarmSettings(Context context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             Intent intent = new Intent();
@@ -95,7 +121,13 @@ public class NotificationHelper {
         }
     }
 
-    // ביטול התראה שתוזמנה
+    /**
+     * Cancels a previously scheduled notification.
+     * Removes both the scheduled alarm and any currently displayed notification.
+     *
+     * @param context The application context
+     * @param notificationId The unique identifier of the notification to cancel
+     */
     public void cancelNotification(Context context, int notificationId) {
         AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         Intent intent = new Intent(context, ReminderReceiver.class);
@@ -111,7 +143,6 @@ public class NotificationHelper {
             alarmManager.cancel(pendingIntent);
         }
 
-        // ביטול התראה שכבר מוצגת
         NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         if (notificationManager != null) {
             notificationManager.cancel(notificationId);
