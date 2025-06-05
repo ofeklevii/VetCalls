@@ -145,45 +145,33 @@ public class ChatFragment extends Fragment {
                                             String img = dogDoc.getString("profileImageUrl");
                                             String finalName = (name != null && !name.isEmpty()) ? name : "כלב";
                                             String finalImg = (img != null && !img.isEmpty()) ? img : "https://example.com/default_dog_image.png";
-                                            ChatPreview chatPreview = new ChatPreview(chatId, finalName, finalImg, lastMessage, lastMessageTime);
-                                            chatList.add(chatPreview);
-                                            adapter.notifyDataSetChanged();
-                                            // עדכון תצוגה
-                                            updateEmptyView();
+                                            updateOrAddChatPreview(chatId, finalName, finalImg, lastMessage, lastMessageTime);
                                         });
                                 continue;
                             }
                             if (displayName == null || displayName.isEmpty()) displayName = "כלב";
                             if (imageUrl == null || imageUrl.isEmpty()) imageUrl = "https://example.com/default_dog_image.png";
                         } else {
-                            displayName = doc.getString("vetName");
-                            imageUrl = doc.getString("vetImageUrl");
                             String vetId = doc.getString("vetId");
-                            if ((displayName == null || displayName.isEmpty() || imageUrl == null || imageUrl.isEmpty()) && vetId != null && !vetId.isEmpty()) {
+                            if (vetId != null && !vetId.isEmpty()) {
                                 db.collection("Veterinarians").document(vetId).get()
-                                        .addOnSuccessListener(vetDoc -> {
-                                            String name = vetDoc.getString("fullName");
-                                            String img = vetDoc.getString("profileImageUrl");
-                                            String finalName = (name != null && !name.isEmpty()) ? name : "וטרינר";
-                                            String finalImg = (img != null && !img.isEmpty()) ? img : "https://example.com/default_vet_image.png";
-                                            ChatPreview chatPreview = new ChatPreview(chatId, finalName, finalImg, lastMessage, lastMessageTime);
-                                            chatList.add(chatPreview);
-                                            adapter.notifyDataSetChanged();
-                                            updateEmptyView();
-                                        });
+                                    .addOnSuccessListener(vetDoc -> {
+                                        String name = vetDoc.getString("fullName");
+                                        String img = vetDoc.getString("profileImageUrl");
+                                        String finalName = (name != null && !name.isEmpty()) ? name : "וטרינר";
+                                        String finalImg = (img != null && !img.isEmpty()) ? img : "https://example.com/default_vet_image.png";
+                                        updateOrAddChatPreview(chatId, finalName, finalImg, lastMessage, lastMessageTime);
+                                    });
                                 continue;
+                            } else {
+                                // vetId ריק - ברירת מחדל
+                                displayName = "וטרינר";
+                                imageUrl = "https://example.com/default_vet_image.png";
+                                updateOrAddChatPreview(chatId, displayName, imageUrl, lastMessage, lastMessageTime);
                             }
-                            if (displayName == null || displayName.isEmpty()) displayName = "וטרינר";
-                            if (imageUrl == null || imageUrl.isEmpty()) imageUrl = "https://example.com/default_vet_image.png";
                         }
-                        Log.d(TAG, "ChatPreview: chatId=" + chatId + ", displayName=" + displayName + ", imageUrl=" + imageUrl);
-
-                        ChatPreview chatPreview = new ChatPreview(chatId, displayName, imageUrl, lastMessage, lastMessageTime);
-                        chatList.add(chatPreview);
+                        updateOrAddChatPreview(chatId, displayName, imageUrl, lastMessage, lastMessageTime);
                     }
-                    adapter.notifyDataSetChanged();
-                    // עדכון תצוגה
-                    updateEmptyView();
                 })
                 .addOnFailureListener(e -> {
                     if (e.getMessage() != null && e.getMessage().contains("PERMISSION_DENIED")) {
@@ -199,6 +187,20 @@ public class ChatFragment extends Fragment {
                         emptyChatsText.setVisibility(View.VISIBLE);
                     }
                 });
+    }
+
+    private void updateOrAddChatPreview(String chatId, String displayName, String imageUrl, String lastMessage, Date lastMessageTime) {
+        for (int i = 0; i < chatList.size(); i++) {
+            if (chatList.get(i).chatId.equals(chatId)) {
+                chatList.set(i, new ChatPreview(chatId, displayName, imageUrl, lastMessage, lastMessageTime));
+                adapter.notifyDataSetChanged();
+                updateEmptyView();
+                return;
+            }
+        }
+        chatList.add(new ChatPreview(chatId, displayName, imageUrl, lastMessage, lastMessageTime));
+        adapter.notifyDataSetChanged();
+        updateEmptyView();
     }
 
     private void updateEmptyView() {
@@ -368,7 +370,7 @@ public class ChatFragment extends Fragment {
                             }
                             Log.d(TAG, "Dog details - Name: " + dogName + ", Image: " + dogImageUrl);
                             String chatId = selectedId + "_" + currentUserId;
-                            saveChatToFirestore(chatId, currentUserId, ownerId, dogName, dogImageUrl, "וטרינר", "https://example.com/default_vet_image.png");
+                            saveChatToFirestore(chatId, currentUserId, selectedId, dogName, dogImageUrl, "וטרינר", "https://example.com/default_vet_image.png");
                         } else {
                             Context context = getContext();
                             if (context != null) {
@@ -386,36 +388,61 @@ public class ChatFragment extends Fragment {
         } else {
             // שלוף את פרטי הווטרינר
             db.collection("Veterinarians").document(selectedId).get()
-                    .addOnSuccessListener(vetDoc -> {
-                        if (vetDoc.exists()) {
-                            Veterinarian vet = vetDoc.toObject(Veterinarian.class);
-                            String vetImageUrl = vet != null ? vet.profileImageUrl : null;
-                            if (vetImageUrl == null || vetImageUrl.isEmpty()) {
-                                vetImageUrl = "https://example.com/default_vet_image.png";
-                            }
-                            String vetName = vet != null ? vet.fullName : null;
-                            if (vetName == null || vetName.isEmpty()) {
-                                vetName = vet != null ? vet.email : null;
-                                if (vetName == null || vetName.isEmpty()) {
-                                    vetName = "וטרינר";
-                                }
-                            }
-                            String chatId = currentUserId + "_" + selectedId;
-                            saveChatToFirestore(chatId, currentUserId, selectedId, "כלב", "https://example.com/default_dog_image.png", vetName, vetImageUrl);
-                        } else {
-                            Context context = getContext();
-                            if (context != null) {
-                                Toast.makeText(context, "לא נמצא וטרינר", Toast.LENGTH_SHORT).show();
+                .addOnSuccessListener(vetDoc -> {
+                    if (vetDoc.exists()) {
+                        String vetImageUrl = vetDoc.getString("profileImageUrl");
+                        if (vetImageUrl != null) vetImageUrl = vetImageUrl.trim();
+                        if (vetImageUrl == null || vetImageUrl.isEmpty()) {
+                            vetImageUrl = "https://example.com/default_vet_image.png";
+                        }
+                        String vetName = vetDoc.getString("fullName");
+                        if (vetName == null || vetName.trim().isEmpty()) {
+                            vetName = vetDoc.getString("email");
+                            if (vetName == null || vetName.trim().isEmpty()) {
+                                vetName = "וטרינר";
                             }
                         }
-                    })
-                    .addOnFailureListener(e -> {
-                        Log.e(TAG, "Error loading veterinarian", e);
+                        final String finalVetName = vetName;
+                        final String finalVetImageUrl = vetImageUrl;
+                        // שלוף את פרטי הכלב של הבעלים (מניח כלב אחד לכל בעלים, או אפשר להוסיף בחירה)
+                        db.collection("DogProfiles")
+                            .whereEqualTo("ownerId", currentUserId)
+                            .limit(1)
+                            .get()
+                            .addOnSuccessListener(dogQuery -> {
+                                String dogName = "כלב";
+                                String dogImageUrl = "https://example.com/default_dog_image.png";
+                                String dogId = "";
+                                if (!dogQuery.isEmpty()) {
+                                    DocumentSnapshot dogDoc = dogQuery.getDocuments().get(0);
+                                    dogName = dogDoc.getString("name");
+                                    dogImageUrl = dogDoc.getString("profileImageUrl");
+                                    dogId = dogDoc.getId();
+                                    if (dogName == null || dogName.isEmpty()) dogName = "כלב";
+                                    if (dogImageUrl == null || dogImageUrl.isEmpty()) dogImageUrl = "https://example.com/default_dog_image.png";
+                                }
+                                String chatId = (dogId.isEmpty() ? currentUserId : dogId) + "_" + selectedId;
+                                saveChatToFirestore(chatId, currentUserId, selectedId, dogName, dogImageUrl, finalVetName, finalVetImageUrl);
+                            })
+                            .addOnFailureListener(e -> {
+                                // במקרה של שגיאה, השתמש במידע ברירת מחדל לכלב
+                                String chatId = currentUserId + "_" + selectedId;
+                                saveChatToFirestore(chatId, currentUserId, selectedId, "כלב", "https://example.com/default_dog_image.png", finalVetName, finalVetImageUrl);
+                            });
+                    } else {
                         Context context = getContext();
                         if (context != null) {
-                            Toast.makeText(context, "שגיאה בטעינת וטרינר: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                            Toast.makeText(context, "לא נמצא וטרינר", Toast.LENGTH_SHORT).show();
                         }
-                    });
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "שגיאה בטעינת וטרינר", e);
+                    Context context = getContext();
+                    if (context != null) {
+                        Toast.makeText(context, "שגיאה בטעינת וטרינר: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    }
+                });
         }
     }
 
@@ -452,8 +479,8 @@ public class ChatFragment extends Fragment {
         if (isVet) {
             data.put("dogName", dogName != null && !dogName.isEmpty() ? dogName : "כלב");
             data.put("dogImageUrl", dogImageUrl != null && !dogImageUrl.isEmpty() ? dogImageUrl : "https://example.com/default_dog_image.png");
-            data.put("vetName", vetName != null && !vetName.isEmpty() ? vetName : "וטרינר");
-            data.put("vetImageUrl", vetImageUrl != null && !vetImageUrl.isEmpty() ? vetImageUrl : "https://example.com/default_vet_image.png");
+            data.put("vetName", vetName != null && !vetName.trim().isEmpty() ? vetName : "וטרינר");
+            data.put("vetImageUrl", vetImageUrl != null && !vetImageUrl.trim().isEmpty() ? vetImageUrl : "https://example.com/default_vet_image.png");
             data.put("dogId", chatId.split("_")[0]);
             data.put("vetId", currentUserId);
             data.put("ownerId", otherId);
@@ -463,8 +490,8 @@ public class ChatFragment extends Fragment {
             Log.d(TAG, "dogImageUrl: " + data.get("dogImageUrl"));
             Log.d(TAG, "dogId: " + data.get("dogId"));
         } else {
-            data.put("vetName", vetName != null && !vetName.isEmpty() ? vetName : "וטרינר");
-            data.put("vetImageUrl", vetImageUrl != null && !vetImageUrl.isEmpty() ? vetImageUrl : "https://example.com/default_vet_image.png");
+            data.put("vetName", vetName != null && !vetName.trim().isEmpty() ? vetName : "וטרינר");
+            data.put("vetImageUrl", vetImageUrl != null && !vetImageUrl.trim().isEmpty() ? vetImageUrl : "https://example.com/default_vet_image.png");
             data.put("dogName", dogName != null && !dogName.isEmpty() ? dogName : "כלב");
             data.put("dogImageUrl", dogImageUrl != null && !dogImageUrl.isEmpty() ? dogImageUrl : "https://example.com/default_dog_image.png");
             data.put("dogId", chatId.split("_")[0]);

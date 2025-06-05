@@ -345,6 +345,9 @@ public class EditVetProfileFragment extends Fragment {
                 .addOnSuccessListener(aVoid -> {
                     Log.d(TAG, "Profile data updated in Firestore successfully");
 
+                    // עדכון כל הצ'אטים של הווטרינר עם שם ותמונה חדשים
+                    updateChatsWithVetProfile(vetId, profileData.fullName, profileData.profileImageUrl);
+
                     // שמירת שדות בסיסיים בSharedPreferences מיד
                     saveBasicDataToSharedPreferences(profileData);
 
@@ -488,5 +491,17 @@ public class EditVetProfileFragment extends Fragment {
         requireActivity().getSupportFragmentManager().beginTransaction()
             .replace(R.id.fragment_container, new com.example.vetcalls.vetFragment.VetHomeFragment())
             .commit();
+    }
+
+    private void updateChatsWithVetProfile(String vetId, String newName, String newImageUrl) {
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
+        db.collection("Chats")
+            .whereEqualTo("vetId", vetId)
+            .get()
+            .addOnSuccessListener(querySnapshot -> {
+                for (com.google.firebase.firestore.DocumentSnapshot chatDoc : querySnapshot.getDocuments()) {
+                    chatDoc.getReference().update("vetName", newName, "vetImageUrl", newName != null && !newName.trim().isEmpty() ? newImageUrl : "https://example.com/default_vet_image.png");
+                }
+            });
     }
 }

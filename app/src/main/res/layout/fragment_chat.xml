@@ -13,15 +13,18 @@
         android:gravity="center_vertical">
 
         <TextView
-            android:id="@+id/chatHeaderTitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:id="@+id/chatsTitle"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:background="#42A5F5"
+            android:gravity="center_vertical|right"
+            android:textAlignment="viewStart"
+            android:paddingEnd="16dp"
             android:text="מסך צ'אטים"
             android:textColor="@android:color/white"
             android:textSize="22sp"
             android:textStyle="bold"
-            android:layout_gravity="center"
-            android:layout_marginStart="16dp" />
+            android:layoutDirection="rtl" />
     </LinearLayout>
 
     <androidx.recyclerview.widget.RecyclerView

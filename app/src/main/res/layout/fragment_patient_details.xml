@@ -1,17 +1,30 @@
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="16dp">
+    android:orientation="vertical">
 
-    <LinearLayout
-        android:orientation="vertical"
+    <TextView
+        android:id="@+id/patientsTitle"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="48dp"
+        android:background="#42A5F5"
+        android:gravity="center_vertical|start"
+        android:paddingStart="16dp"
+        android:text="רשימת מטופלים"
+        android:textColor="@android:color/white"
+        android:textSize="22sp"
+        android:textStyle="bold" />
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/dogsRecyclerView"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
             android:visibility="visible"
             android:layout_marginBottom="16dp"/>
 
@@ -19,7 +32,7 @@
             android:id="@+id/detailsContainer"
             android:orientation="vertical"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
             android:visibility="gone">
 
             <Button
@@ -53,31 +66,26 @@
                 android:layout_height="wrap_content"
                 android:textSize="16sp"
                 android:layout_marginBottom="4dp"/>
-                
             <TextView android:id="@+id/patientRace"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textSize="16sp"
                 android:layout_marginBottom="4dp"/>
-                
             <TextView android:id="@+id/patientWeight"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textSize="16sp"
                 android:layout_marginBottom="4dp"/>
-                
             <TextView android:id="@+id/patientVaccines"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textSize="16sp"
                 android:layout_marginBottom="4dp"/>
-                
             <TextView android:id="@+id/patientAllergies"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textSize="16sp"
                 android:layout_marginBottom="4dp"/>
-
             <TextView android:id="@+id/lastVisitText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -104,5 +112,5 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical"/>
         </LinearLayout>
-    </LinearLayout>
-</ScrollView>
+    </FrameLayout>
+</LinearLayout>
